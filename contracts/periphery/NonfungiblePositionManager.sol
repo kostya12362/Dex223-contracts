@@ -431,7 +431,7 @@ contract DexaransNonfungiblePositionManager is
             amount0Collect,
             amount1Collect,
             tokensOut == 3 || tokensOut == 2, // True = request ERC-223 token0
-            tokensOut == 2 || tokensOut == 1  // True = request ERC-223 token1
+            tokensOut == 3 || tokensOut == 1  // True = request ERC-223 token1
         );
 
         // sometimes there will be a few less wei than expected due to rounding down in core, but we just subtract the full amount expected
