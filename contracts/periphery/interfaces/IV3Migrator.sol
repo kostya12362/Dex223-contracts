@@ -2,8 +2,8 @@
 pragma solidity >=0.7.5;
 pragma abicoder v2;
 
-import './IMulticall.sol';
-import './ISelfPermit.sol';
+import 'dex223-library/contracts/interfaces/IMulticall.sol';
+import 'dex223-library/contracts/interfaces/ISelfPermit.sol';
 import './IPoolInitializer.sol';
 
 /// @title V3 Migrator

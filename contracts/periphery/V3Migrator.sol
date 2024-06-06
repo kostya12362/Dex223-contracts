@@ -2,18 +2,18 @@
 pragma solidity =0.7.6;
 pragma abicoder v2;
 
-import './libraries/LowGasSafeMath.sol';
-import './interfaces/IUniswapV2Pair.sol';
+import 'dex223-library/contracts/libraries/LowGasSafeMath.sol';
+import 'dex223-library/contracts/interfaces/IUniswapV2Pair.sol';
 
 import './interfaces/INonfungiblePositionManager.sol';
 
-import './libraries/TransferHelper.sol';
+import 'dex223-library/contracts/libraries/TransferHelper.sol';
 
-import './interfaces/IV3Migrator.sol';
+import 'dex223-library/contracts/interfaces/IV3Migrator.sol';
 import './base/PeripheryImmutableState.sol';
-import './base/Multicall.sol';
-import './base/SelfPermit.sol';
-import '../tokens/interfaces/IWETH9.sol';
+import 'dex223-library/contracts/libraries/Multicall.sol';
+import 'dex223-library/contracts/libraries/SelfPermit.sol';
+import 'dex223-library/contracts/tokens/interfaces/IWETH9.sol';
 import './base/PoolInitializer.sol';
 
 /// @title Uniswap V3 Migrator

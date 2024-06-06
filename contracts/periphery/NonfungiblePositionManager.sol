@@ -2,23 +2,23 @@
 pragma solidity >=0.7.6;
 pragma abicoder v2;
 
-import './interfaces/IUniswapV3Pool.sol';
+import 'dex223-library/contracts/interfaces/IUniswapV3Pool.sol';
 import './interfaces/INonfungiblePositionManager.sol';
 import './interfaces/INonfungibleTokenPositionDescriptor.sol';
-import './libraries/FixedPoint128.sol';
-import './libraries/FullMath.sol';
-import './libraries/PositionKey.sol';
-import './libraries/PoolAddress.sol';
-import './libraries/Address.sol';
+import 'dex223-library/contracts/libraries/FixedPoint128.sol';
+import 'dex223-library/contracts/libraries/FullMath.sol';
+import 'dex223-library/contracts/libraries/PositionKey.sol';
+import './base/PoolAddress.sol';
+import 'dex223-library/contracts/libraries/Address.sol';
 import './base/LiquidityManagement.sol';
 import './base/PeripheryImmutableState.sol';
-import './base/Multicall.sol';
+import 'dex223-library/contracts/libraries/Multicall.sol';
 import './base/PeripheryValidation.sol';
 import './base/PoolInitializer.sol';
-import './base/ERC721Permit.sol';
-import './base/SelfPermit.sol';
-import '../tokens/ERC721.sol';
-import '../ERC223/IERC223Recipient.sol';
+import 'dex223-library/contracts/libraries/ERC721Permit.sol';
+import 'dex223-library/contracts/libraries/SelfPermit.sol';
+import 'dex223-library/contracts/tokens/ERC721.sol';
+import 'dex223-library/contracts/tokens/interfaces/IERC223Recipient.sol';
 
 interface IDex223PoolActions {
     function collect(

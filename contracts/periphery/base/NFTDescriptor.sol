@@ -2,16 +2,16 @@
 pragma solidity >=0.7.0;
 pragma abicoder v2;
 
-import '../interfaces/IUniswapV3Pool.sol';
-import './TickMath.sol';
-import './BitMath.sol';
-import './FullMath.sol';
-import './Strings.sol';
-import './SafeMath.sol';
-import './SignedSafeMath.sol';
-import './base64.sol';
-import './HexStrings.sol';
-import './NFTSVG.sol';
+import 'dex223-library/contracts/interfaces/IUniswapV3Pool.sol';
+import 'dex223-library/contracts/libraries/TickMath.sol';
+import 'dex223-library/contracts/libraries/BitMath.sol';
+import 'dex223-library/contracts/libraries/FullMath.sol';
+import 'dex223-library/contracts/libraries/Strings.sol';
+import 'dex223-library/contracts/libraries/SafeMath.sol';
+import 'dex223-library/contracts/libraries/SignedSafeMath.sol';
+import 'dex223-library/contracts/libraries/base64.sol';
+import 'dex223-library/contracts/libraries/HexStrings.sol';
+import 'dex223-library/contracts/libraries/NFTSVG.sol';
 
 library NFTDescriptor {
     using TickMath for int24;

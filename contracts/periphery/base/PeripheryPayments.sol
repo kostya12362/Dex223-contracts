@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity >=0.7.5;
 
-import '../../tokens/interfaces/IERC20.sol';
+import 'dex223-library/contracts/tokens/interfaces/IERC20.sol';
 
 import '../interfaces/IPeripheryPayments.sol';
-import '../../tokens/interfaces/IWETH9.sol';
+import 'dex223-library/contracts/tokens/interfaces/IWETH9.sol';
 
-import '../libraries/TransferHelper.sol';
+import 'dex223-library/contracts/libraries/TransferHelper.sol';
 
 import './PeripheryImmutableState.sol';
 

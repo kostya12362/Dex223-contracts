@@ -2,30 +2,30 @@
 pragma solidity >=0.7.6;
 pragma abicoder v2;
 
-import './interfaces/ITokenConverter.sol';
+import 'dex223-library/contracts/interfaces/ITokenConverter.sol';
 
 import './interfaces/IUniswapV3Pool.sol';
 
 import './NoDelegateCall.sol';
 
-import './libraries/LowGasSafeMath.sol';
-import './libraries/SafeCast.sol';
-import './libraries/Tick.sol';
-import './libraries/TickBitmap.sol';
-import './libraries/Position.sol';
-import './libraries/Oracle.sol';
+import 'dex223-library/contracts/libraries/LowGasSafeMath.sol';
+import 'dex223-library/contracts/libraries/SafeCast.sol';
+import 'dex223-library/contracts/libraries/Tick.sol';
+import 'dex223-library/contracts/libraries/TickBitmap.sol';
+import 'dex223-library/contracts/libraries/Position.sol';
+import 'dex223-library/contracts/libraries/Oracle.sol';
 
-import './libraries/FullMath.sol';
-import './libraries/FixedPoint128.sol';
-import './libraries/TransferHelper.sol';
-import './libraries/TickMath.sol';
-import './libraries/LiquidityMath.sol';
+import 'dex223-library/contracts/libraries/FullMath.sol';
+import 'dex223-library/contracts/libraries/FixedPoint128.sol';
+import 'dex223-library/contracts/libraries/TransferHelper.sol';
+import 'dex223-library/contracts/libraries/TickMath.sol';
+import 'dex223-library/contracts/libraries/LiquidityMath.sol';
 // import './libraries/SqrtPriceMath.sol';
-import './libraries/SwapMath.sol';
+import 'dex223-library/contracts/libraries/SwapMath.sol';
 
 import './interfaces/IDex223PoolDeployer.sol';
 import './interfaces/IDex223Factory.sol';
-import './interfaces/IERC20Minimal.sol';
+import 'dex223-library/contracts/interfaces/IERC20Minimal.sol';
 // import './interfaces/callback/IUniswapV3MintCallback.sol';
 import './interfaces/callback/IUniswapV3SwapCallback.sol';
 /*

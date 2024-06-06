@@ -2,9 +2,12 @@
 
 pragma solidity >=0.8.19;
 
-import "../ERC223/IERC223Recipient.sol";
-import "../ERC223/Address.sol";
-import "../introspection/ERC165.sol";
+//import "../ERC223/IERC223Recipient.sol";
+import "dex223-library/contracts/tokens/interfaces/IERC223Recipient.sol";
+//import "../ERC223/Address.sol";
+import "dex223-library/contracts/libraries/Address.sol";
+//import "../introspection/ERC165.sol";
+import "dex223-library/contracts/introspection/ERC165.sol";
 
 /**
  * @dev Interface of the ERC223 standard token as defined in the EIP-223 https://eips.ethereum.org/EIPS/eip-223.

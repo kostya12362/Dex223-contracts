@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity >=0.7.5;
 
-import '../../tokens/interfaces/IERC20.sol';
-import '../libraries/LowGasSafeMath.sol';
+import 'dex223-library/contracts/tokens/interfaces/IERC20.sol';
+import 'dex223-library/contracts/libraries/LowGasSafeMath.sol';
 
 import './PeripheryPayments.sol';
 import '../interfaces/IPeripheryPaymentsWithFee.sol';
 
-import '../../tokens/interfaces/IWETH9.sol';
-import '../libraries/TransferHelper.sol';
+import 'dex223-library/contracts/tokens/interfaces/IWETH9.sol';
+import 'dex223-library/contracts/libraries/TransferHelper.sol';
 
 abstract contract PeripheryPaymentsWithFee is PeripheryPayments, IPeripheryPaymentsWithFee {
     using LowGasSafeMath for uint256;

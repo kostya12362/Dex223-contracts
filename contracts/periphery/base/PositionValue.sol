@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity >=0.6.8 <0.8.0;
 
-import '../interfaces/IUniswapV3Pool.sol';
-import './FixedPoint128.sol';
-import './TickMath.sol';
-import './Tick.sol';
+import 'dex223-library/contracts/interfaces/IUniswapV3Pool.sol';
+import 'dex223-library/contracts/libraries/FixedPoint128.sol';
+import 'dex223-library/contracts/libraries/TickMath.sol';
+import 'dex223-library/contracts/libraries/Tick.sol';
+import 'dex223-library/contracts/libraries/PositionKey.sol';
 import '../interfaces/INonfungiblePositionManager.sol';
 import './LiquidityAmounts.sol';
 import './PoolAddress.sol';
-import './PositionKey.sol';
 
 /// @title Returns information about the token value held in a Uniswap V3 NFT
 library PositionValue {

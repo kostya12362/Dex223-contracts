@@ -2,20 +2,20 @@
 pragma solidity =0.7.6;
 pragma abicoder v2;
 
-import './libraries/SafeCast.sol';
-import './libraries/TickMath.sol';
-import './interfaces/IUniswapV3Pool.sol';
+import 'dex223-library/contracts/libraries/SafeCast.sol';
+import 'dex223-library/contracts/libraries/TickMath.sol';
+import 'dex223-library/contracts/interfaces/IUniswapV3Pool.sol';
 
 import './interfaces/ISwapRouter.sol';
 import './base/PeripheryImmutableState.sol';
 import './base/PeripheryValidation.sol';
 import './base/PeripheryPaymentsWithFee.sol';
-import './base/Multicall.sol';
-import './base/SelfPermit.sol';
-import './libraries/Path.sol';
-import './libraries/PoolAddress.sol';
-import './libraries/CallbackValidation.sol';
-import '../tokens/interfaces/IWETH9.sol';
+import 'dex223-library/contracts/libraries/Multicall.sol';
+import 'dex223-library/contracts/libraries/SelfPermit.sol';
+import 'dex223-library/contracts/libraries/Path.sol';
+import './base/PoolAddress.sol';
+import './base/CallbackValidation.sol';
+import 'dex223-library/contracts/tokens/interfaces/IWETH9.sol';
 
 interface IDex223Pool {
     function swap(
