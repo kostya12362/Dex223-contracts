@@ -381,17 +381,21 @@ contract Dex223PoolLib {
         {
             if(_is223)
             {
-                IERC20Minimal(_token).transfer(address(converter), _amount - IERC20Minimal(_token).balanceOf(address(this)));
+                // take ERC20 version of token
+                address _token20 = (_token == token0.erc223) ? token0.erc20 : token1.erc20;
+                // Approve the converter first if necessary.
+                // This approval is expected to execute once and forever.
+                if(IERC20Minimal(_token20).allowance(address(this), address(converter)) < _amount)
+                {
+                    IERC20Minimal(_token20).approve(address(converter), 2**256-1);
+                }
+                converter.convertERC20(_token20, _amount - IERC20Minimal(_token).balanceOf(address(this)));
             }
             else
             {
-                // Approve the converter first if necessary.
-                // This approval is expected to execute once and forever.
-                if(IERC20Minimal(_token).allowance(address(this), address(converter)) < _amount)
-                {
-                    IERC20Minimal(_token).approve(address(converter), 2**256-1);
-                }
-                converter.convertERC20(_token, _amount - IERC20Minimal(_token).balanceOf(address(this)));
+                // take ERC223 version of token
+                address _token223 = (_token == token0.erc20) ? token0.erc223 : token1.erc223;
+                IERC20Minimal(_token223).transfer(address(converter), _amount - IERC20Minimal(_token).balanceOf(address(this)));
             }
             TransferHelper.safeTransfer(_token, _recipient, _amount);
         }
