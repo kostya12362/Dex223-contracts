@@ -39,30 +39,30 @@ interface IDex223PoolActions {
     ) external returns (uint256 amount0, uint256 amount1);
 
     function positions(bytes32 key)
-        external
-        view
-        returns (
-            uint128 _liquidity,
-            uint256 feeGrowthInside0LastX128,
-            uint256 feeGrowthInside1LastX128,
-            uint128 tokensOwed0,
-            uint128 tokensOwed1
-        );
+    external
+    view
+    returns (
+        uint128 _liquidity,
+        uint256 feeGrowthInside0LastX128,
+        uint256 feeGrowthInside1LastX128,
+        uint128 tokensOwed0,
+        uint128 tokensOwed1
+    );
 }
 
 
 /// @title NFT positions
 /// @notice Wraps Uniswap V3 positions in the ERC721 non-fungible token interface
 contract DexaransNonfungiblePositionManager is
-    INonfungiblePositionManager,
-    Multicall,
-    ERC721Permit,
-    PeripheryImmutableState,
-    PoolInitializer,
-    LiquidityManagement,
-    PeripheryValidation,
-    SelfPermit,
-    IERC223Recipient
+INonfungiblePositionManager,
+Multicall,
+ERC721Permit,
+PeripheryImmutableState,
+PoolInitializer,
+LiquidityManagement,
+PeripheryValidation,
+SelfPermit,
+IERC223Recipient
 {
     // details about the uniswap position
     struct Position {
@@ -108,7 +108,7 @@ contract DexaransNonfungiblePositionManager is
         address _factory,
         address _WETH9 //,
 //        address _library//,
-        /* address _tokenDescriptor_ */
+    /* address _tokenDescriptor_ */
     ) ERC721Permit('Uniswap V3 Positions NFT-V1', 'UNI-V3-POS', '1') PeripheryImmutableState(_factory, _WETH9) {
         // _tokenDescriptor = _tokenDescriptor_; removed during testing
 //        pool_lib = _library;
@@ -137,26 +137,26 @@ contract DexaransNonfungiblePositionManager is
 
     /// @inheritdoc INonfungiblePositionManager
     function positions(uint256 tokenId)
-        external
-        view
-        override
-        returns (
-            uint96 nonce,
-            address operator,
-            address token0,
-            address token1,
-            uint24 fee,
-            int24 tickLower,
-            int24 tickUpper,
-            uint128 liquidity,
-            uint256 feeGrowthInside0LastX128,
-            uint256 feeGrowthInside1LastX128,
-            uint128 tokensOwed0,
-            uint128 tokensOwed1
-        )
+    external
+    view
+    override
+    returns (
+        uint96 nonce,
+        address operator,
+        address token0,
+        address token1,
+        uint24 fee,
+        int24 tickLower,
+        int24 tickUpper,
+        uint128 liquidity,
+        uint256 feeGrowthInside0LastX128,
+        uint256 feeGrowthInside1LastX128,
+        uint128 tokensOwed0,
+        uint128 tokensOwed1
+    )
     {
         Position memory position = _positions[tokenId];
-        require(position.poolId != 0, 'Invalid token ID');
+        require(position.poolId != 0);//, 'Invalid token ID');
         PoolAddress.PoolKey memory poolKey = _poolIdToPoolKey[position.poolId];
         return (
             position.nonce,
@@ -185,16 +185,16 @@ contract DexaransNonfungiblePositionManager is
 
     /// @inheritdoc INonfungiblePositionManager
     function mint(MintParams calldata params)
-        external
-        payable
-        override
-        checkDeadline(params.deadline)
-        returns (
-            uint256 tokenId,
-            uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1
-        )
+    external
+    payable
+    override
+    checkDeadline(params.deadline)
+    returns (
+        uint256 tokenId,
+        uint128 liquidity,
+        uint256 amount0,
+        uint256 amount1
+    )
     {
         IUniswapV3Pool pool;
         (liquidity, amount0, amount1, pool) = addLiquidity(
@@ -219,7 +219,7 @@ contract DexaransNonfungiblePositionManager is
 
         // idempotent set
         uint80 poolId =
-            cachePoolKey(
+                        cachePoolKey(
                 address(pool),
                 PoolAddress.PoolKey({token0: params.token0, token1: params.token1, fee: params.fee})
             );
@@ -241,7 +241,7 @@ contract DexaransNonfungiblePositionManager is
     }
 
     modifier isAuthorizedForToken(uint256 tokenId) {
-        require(_isApprovedOrOwner(msg.sender, tokenId), 'Not approved');
+        require(_isApprovedOrOwner(msg.sender, tokenId));//, 'Not approved');
         _;
     }
 
@@ -256,15 +256,15 @@ contract DexaransNonfungiblePositionManager is
 
     /// @inheritdoc INonfungiblePositionManager
     function increaseLiquidity(IncreaseLiquidityParams calldata params)
-        external
-        payable
-        override
-        checkDeadline(params.deadline)
-        returns (
-            uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1
-        )
+    external
+    payable
+    override
+    checkDeadline(params.deadline)
+    returns (
+        uint128 liquidity,
+        uint256 amount0,
+        uint256 amount1
+    )
     {
         Position storage position = _positions[params.tokenId];
 
@@ -315,12 +315,12 @@ contract DexaransNonfungiblePositionManager is
 
     /// @inheritdoc INonfungiblePositionManager
     function decreaseLiquidity(DecreaseLiquidityParams calldata params)
-        external
-        payable
-        override
-        isAuthorizedForToken(params.tokenId)
-        checkDeadline(params.deadline)
-        returns (uint256 amount0, uint256 amount1)
+    external
+    payable
+    override
+    isAuthorizedForToken(params.tokenId)
+    checkDeadline(params.deadline)
+    returns (uint256 amount0, uint256 amount1)
     {
         require(params.liquidity > 0);
         Position storage position = _positions[params.tokenId];
@@ -332,7 +332,7 @@ contract DexaransNonfungiblePositionManager is
         IUniswapV3Pool pool = IUniswapV3Pool(PoolAddress.computeAddress(factory, poolKey));
         (amount0, amount1) = pool.burn(position.tickLower, position.tickUpper, params.liquidity);
 
-        require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Price slippage check');
+        require(amount0 >= params.amount0Min && amount1 >= params.amount1Min);//, 'Price slippage check');
 
         bytes32 positionKey = PositionKey.compute(address(this), position.tickLower, position.tickUpper);
         // this is now updated to the current transaction
@@ -367,11 +367,11 @@ contract DexaransNonfungiblePositionManager is
 
     /// @inheritdoc INonfungiblePositionManager
     function collect(CollectParams calldata params)
-        external
-        payable
-        override
-        isAuthorizedForToken(params.tokenId)
-        returns (uint256 amount0, uint256 amount1)
+    external
+    payable
+    override
+    isAuthorizedForToken(params.tokenId)
+    returns (uint256 amount0, uint256 amount1)
     {
         require(params.amount0Max > 0 || params.amount1Max > 0);
         // allow collecting to the nft position manager address with address 0
@@ -390,7 +390,7 @@ contract DexaransNonfungiblePositionManager is
         if (position.liquidity > 0) {
             IDex223PoolActions(params.pool).burn(position.tickLower, position.tickUpper, 0);
             (, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, , ) =
-                IDex223PoolActions(params.pool).positions(PositionKey.compute(address(this), position.tickLower, position.tickUpper));
+                                    IDex223PoolActions(params.pool).positions(PositionKey.compute(address(this), position.tickLower, position.tickUpper));
 
             tokensOwed0 += uint128(
                 FullMath.mulDiv(
@@ -413,10 +413,10 @@ contract DexaransNonfungiblePositionManager is
 
         // compute the arguments to give to the pool#collect method
         (uint128 amount0Collect, uint128 amount1Collect) =
-            (
-                params.amount0Max > tokensOwed0 ? tokensOwed0 : params.amount0Max,
-                params.amount1Max > tokensOwed1 ? tokensOwed1 : params.amount1Max
-            );
+        (
+            params.amount0Max > tokensOwed0 ? tokensOwed0 : params.amount0Max,
+            params.amount1Max > tokensOwed1 ? tokensOwed1 : params.amount1Max
+        );
 
 
         // 0 = both ERC-20
@@ -445,7 +445,7 @@ contract DexaransNonfungiblePositionManager is
     /// @inheritdoc INonfungiblePositionManager
     function burn(uint256 tokenId) external payable override isAuthorizedForToken(tokenId) {
         Position storage position = _positions[tokenId];
-        require(position.liquidity == 0 && position.tokensOwed0 == 0 && position.tokensOwed1 == 0, 'Not cleared');
+        require(position.liquidity == 0 && position.tokensOwed0 == 0 && position.tokensOwed1 == 0);//, 'Not cleared');
         delete _positions[tokenId];
         _burn(tokenId);
     }
@@ -456,7 +456,7 @@ contract DexaransNonfungiblePositionManager is
 
     /// @inheritdoc IERC721
     function getApproved(uint256 tokenId) public view override(ERC721, IERC721) returns (address) {
-        require(_exists(tokenId), 'ERC721: approved query for nonexistent token');
+        require(_exists(tokenId));//, 'ERC721: approved query for nonexistent token');
 
         return _positions[tokenId].operator;
     }
