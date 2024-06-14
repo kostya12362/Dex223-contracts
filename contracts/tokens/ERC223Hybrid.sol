@@ -106,8 +106,14 @@ contract ERC223HybridToken is IERC223 {
      */
     function transfer(address _to, uint _value, bytes calldata _data) public payable override returns (bool success)
     {
-        // Standard function transfer similar to ERC20 transfer with no _data .
-        // Added due to backwards compatibility reasons .
+        // As per ERC-223 description transfer the ether first https://eips.ethereum.org/EIPS/eip-223.
+
+        if(msg.value != 0)
+        {
+            payable(_to).transfer(msg.value);
+        }
+
+        // Then process the token transfer.
         balances[msg.sender] = balances[msg.sender] - _value;
         balances[_to] = balances[_to] + _value;
         if(Address.isContract(_to)) {
@@ -132,6 +138,9 @@ contract ERC223HybridToken is IERC223 {
      */
     function transfer(address _to, uint _value) public override returns (bool success)
     {
+        // Standard function transfer similar to ERC20 transfer with no _data.
+        // Added due to backwards compatibility reasons.
+
         bytes memory _empty = hex"00000000";
         balances[msg.sender] = balances[msg.sender] - _value;
         balances[_to] = balances[_to] + _value;
