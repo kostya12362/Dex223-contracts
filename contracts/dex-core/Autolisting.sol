@@ -114,13 +114,21 @@ contract AutoListingsRegistry {
 }
 
 contract Dex223AutoListing {
+    string  public name;  // Auto-listing contracts name.
+    string  public url;   // URL of the auto-listing contract if one exists.
+    address public owner; // Who is the owner of the auto-listing contract.
+                          // Owner always exists but it is possible that owner has no special rights.
+                          // If there is no `owner` variable assume the owner is address(0x0).
     IDex223Factory       factory;
     AutoListingsRegistry registry;
 
-    constructor(address _factory, address _registry)
+    constructor(address _factory, address _registry, string memory _name, string memory _URL)
     {
         factory  = IDex223Factory(_factory);
         registry = AutoListingsRegistry(_registry);
+        owner    = msg.sender;
+        name     = _name;
+        url      = _URL;
     }
 
     struct Token
@@ -149,6 +157,16 @@ contract Dex223AutoListing {
     uint256 public num_listed_tokens;
 
     mapping(uint256 => TradeablePair) public pairs; // index => pair
+
+    function getName() public view returns (string memory)
+    {
+        return name;
+    }
+
+    function getURL() public view returns (string memory)
+    {
+        return url;
+    }
 
     function isListed(address _token) public view returns (bool)
     {
