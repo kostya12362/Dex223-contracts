@@ -158,6 +158,11 @@ contract Dex223AutoListing {
 
     mapping(uint256 => TradeablePair) public pairs; // index => pair
 
+    function getRegistry() public view returns (address)
+    {
+        return address(registry);
+    }
+
     function getName() public view returns (string memory)
     {
         return name;
