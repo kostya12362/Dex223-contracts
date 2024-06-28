@@ -1,7 +1,11 @@
 ## Test tokens on Sepolia (release 3)
 
-- Helium (HE, 2) https://sepolia.etherscan.io/address/0xEC5aa08386F4B20dE1ADF9Cdf225b71a133FfaBa
-- Neon (NE, 10) https://sepolia.etherscan.io/address/0xe39c469BeA1D805E02A31E9d8d2D78A379F2A099
-- Argon (AR, 1) https://sepolia.etherscan.io/address/0xc676e76573267cc2E053BE8637Ba71d6BA321195
-- Krypton (KR, 3) https://sepolia.etherscan.io/address/0xD0c00cC7Ec5c78557BeAf61A3dD15bdA1b8c7325
-- Xenon (XE, 5) https://sepolia.etherscan.io/address/0x8F5Ea3D9b780da2D0Ab6517ac4f6E697A948794f
+| Token         | ERC-20        |       ERC-223 |
+| ------------- | ------------- | ------------- |
+| Helium (HE, 2)   | 0xEC5aa08386F4B20dE1ADF9Cdf225b71a133FfaBa  | 0xE201F9a4ed6e165FC259143F419782039AE0C3E0  | 
+| Neon (NE, 10)    | 0xe39c469BeA1D805E02A31E9d8d2D78A379F2A099  | 0x73b73d577Ea52F0df39Aaa3554F1D1504501bbAe  | 
+| Argon (AR, 1)    | 0xc676e76573267cc2E053BE8637Ba71d6BA321195  | 0x8F5E713C536a63f8af3B63cE3DC08cd3fF4bc668  | 
+| Krypton (KR, 3)  | 0xD0c00cC7Ec5c78557BeAf61A3dD15bdA1b8c7325  | 0xAECA90047E842e9cf5143CC2437A3FF1AFBbeEaa  | 
+| Xenon (XE, 5)    | 0x8F5Ea3D9b780da2D0Ab6517ac4f6E697A948794f  | 0xE36231fe26e8fB44Cf82687926061d65C0989196  | 
+
+
