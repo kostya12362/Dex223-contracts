@@ -147,9 +147,9 @@ contract Dex223PoolLib {
     }
 
     /// @dev Returns the block timestamp truncated to 32 bits, i.e. mod 2**32. This method is overridden in tests.
-//    function _blockTimestamp() internal view virtual returns (uint32) {
-//        return uint32(block.timestamp); // truncation is desired
-//    }
+    function _blockTimestamp() internal view virtual returns (uint32) {
+        return uint32(block.timestamp); // truncation is desired
+    }
 
     /// @dev Get the pool's balance of token0
     /// @dev This function is gas optimized to avoid a redundant extcodesize check in addition to the returndatasize
@@ -202,7 +202,7 @@ contract Dex223PoolLib {
         bool flippedLower;
         bool flippedUpper;
         if (liquidityDelta != 0) {
-            uint32 time = uint32(block.timestamp);
+            uint32 time = _blockTimestamp();
             (int56 tickCumulative, uint160 secondsPerLiquidityCumulativeX128) =
                                 observations.observeSingle(
                     time,
@@ -303,7 +303,7 @@ contract Dex223PoolLib {
                 // write an oracle entry
                 (slot0.observationIndex, slot0.observationCardinality) = observations.write(
                     _slot0.observationIndex,
-                    uint32(block.timestamp),
+                    _blockTimestamp(),
                     _slot0.tick,
                     liquidityBefore,
                     _slot0.observationCardinality,
@@ -540,7 +540,7 @@ contract Dex223PoolLib {
         SwapCache memory cache =
             SwapCache({
                 liquidityStart: liquidity,
-                blockTimestamp: uint32(block.timestamp),
+                blockTimestamp: _blockTimestamp(),
                 feeProtocol: zeroForOne ? (slot0Start.feeProtocol % 16) : (slot0Start.feeProtocol >> 4),
                 secondsPerLiquidityCumulativeX128: 0,
                 tickCumulative: 0,
@@ -739,9 +739,10 @@ contract Dex223PoolLib {
                 require(balance1Before.add(uint256(amount1)) <= balance1(), 'IIA');
             }
 
-            if(prefer223Out) optimisticDelivery(token0.erc223, recipient, uint256(-amount0));
-            else optimisticDelivery(token0.erc20, recipient, uint256(-amount0));
-
+            if (amount0 < 0) {
+                if(prefer223Out) optimisticDelivery(token0.erc223, recipient, uint256(-amount0));
+                else optimisticDelivery(token0.erc20, recipient, uint256(-amount0));
+            }
         }
 
         emit Swap(swap_sender, recipient, amount0, amount1, state.sqrtPriceX96, state.liquidity, state.tick);

@@ -232,9 +232,9 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
     }
 
     /// @dev Returns the block timestamp truncated to 32 bits, i.e. mod 2**32. This method is overridden in tests.
-    /*function _blockTimestamp() internal view virtual returns (uint32) {
+    function _blockTimestamp() internal view virtual returns (uint32) {
         return uint32(block.timestamp); // truncation is desired
-    } */
+    }
 
     /// @dev Get the pool's balance of token0
     /// @dev This function is gas optimized to avoid a redundant extcodesize check in addition to the returndatasize
@@ -318,7 +318,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
                 secondsOutsideLower - secondsOutsideUpper
             );
         } else if (_slot0.tick < tickUpper) {
-            uint32 time = uint32(block.timestamp);
+            uint32 time = _blockTimestamp();
             (int56 tickCumulative, uint160 secondsPerLiquidityCumulativeX128) =
                 observations.observeSingle(
                     time,
@@ -354,7 +354,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
     {
         return
             observations.observe(
-                uint32(block.timestamp),
+                _blockTimestamp(),
                 secondsAgos,
                 slot0.tick,
                 slot0.observationIndex,
@@ -385,7 +385,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
 
         int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
 
-        (uint16 cardinality, uint16 cardinalityNext) = observations.initialize(uint32(block.timestamp));
+        (uint16 cardinality, uint16 cardinalityNext) = observations.initialize(_blockTimestamp());
 
         slot0 = Slot0({
             sqrtPriceX96: sqrtPriceX96,
@@ -450,7 +450,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
         uint160 sqrtPriceLimitX96,
         bool prefer223,
         bytes memory data
-    ) external override adjustableSender /*noDelegateCall*/ // noDelegateCall will not prevent delegatecalling
+    ) external virtual override adjustableSender // noDelegateCall will not prevent delegatecalling
                                                         // this method from the same contract via `tokenReceived` of ERC-223
      returns (int256 amount0, int256 amount1) {
 
