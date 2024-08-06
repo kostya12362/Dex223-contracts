@@ -205,9 +205,10 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
         //          tokens must be extracted after the execution of the logic following the deposit.
 
         ////  Commented for testing purposes.
-        ////  if (erc223deposit[_from][msg.sender] != 0) TransferHelper.safeTransfer(msg.sender, _from, erc223deposit[_from][msg.sender]);
-
         // TODO: Auto-extract excess of deposited ERC-223 tokens after the main logic of the func.
+        // TODO: uncommented for auto tests to work properly
+        if (erc223deposit[_from][msg.sender] != 0) TransferHelper.safeTransfer(msg.sender, _from, erc223deposit[_from][msg.sender]);
+
         swap_sender = address(0);
         return 0x8943ec02;
     }

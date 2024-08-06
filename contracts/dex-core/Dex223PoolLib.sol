@@ -377,7 +377,10 @@ contract Dex223PoolLib {
                             _token.call(abi.encodeWithSelector(IERC20Minimal.transfer.selector, _recipient, _amount));
 
         //require(success && (data.length == 0 || abi.decode(data, (bool))), 'TF');
-        if(!success)
+        bool tokenNotExist = (success && data.length == 0);
+        uint _balance = tokenNotExist ? 0 : IERC20Minimal(_token).balanceOf(address(this));
+
+        if(!success || tokenNotExist)
         {
             if(_is223)
             {
@@ -389,13 +392,13 @@ contract Dex223PoolLib {
                 {
                     IERC20Minimal(_token20).approve(address(converter), 2**256-1);
                 }
-                converter.convertERC20(_token20, _amount - IERC20Minimal(_token).balanceOf(address(this)));
+                converter.convertERC20(_token20, _amount - _balance);
             }
             else
             {
                 // take ERC223 version of token
                 address _token223 = (_token == token0.erc20) ? token0.erc223 : token1.erc223;
-                IERC20Minimal(_token223).transfer(address(converter), _amount - IERC20Minimal(_token).balanceOf(address(this)));
+                IERC20Minimal(_token223).transfer(address(converter), _amount - _balance);
             }
             TransferHelper.safeTransfer(_token, _recipient, _amount);
         }
