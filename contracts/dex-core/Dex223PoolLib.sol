@@ -378,10 +378,12 @@ contract Dex223PoolLib {
 
         //require(success && (data.length == 0 || abi.decode(data, (bool))), 'TF');
         bool tokenNotExist = (success && data.length == 0);
-        uint _balance = tokenNotExist ? 0 : IERC20Minimal(_token).balanceOf(address(this));
 
         if(!success || tokenNotExist)
         {
+            // NOTE can not get balance if no contract deployed
+            uint _balance = tokenNotExist ? 0 : IERC20Minimal(_token).balanceOf(address(this));
+
             if(_is223)
             {
                 // take ERC20 version of token
