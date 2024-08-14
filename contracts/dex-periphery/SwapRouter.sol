@@ -7,12 +7,13 @@ import '../libraries/TickMath.sol';
 import '../libraries/Multicall.sol';
 import '../libraries/SelfPermit.sol';
 import '../libraries/Path.sol';
+import '../libraries/PeripheryValidation.sol';
 import '../interfaces/IUniswapV3Pool.sol';
+
 import '../tokens/interfaces/IWETH9.sol';
 
 import './interfaces/ISwapRouter.sol';
 import './base/PeripheryImmutableState.sol';
-import './base/PeripheryValidation.sol';
 import './base/PeripheryPaymentsWithFee.sol';
 import './base/PoolAddress.sol';
 import './base/CallbackValidation.sol';
@@ -182,11 +183,9 @@ IERC223Recipient
         bool prefer223Out,
         SwapCallbackData memory data
     ) private returns (uint256 amountOut) {
-        // allow swapping to the router address with address 0
         if (recipient == address(0)) recipient = address(this);
 
         (address tokenIn, address tokenOut, uint24 fee) = data.path.decodeFirstPool();
-
         bool zeroForOne = tokenIn < tokenOut;
         address pool = address(getPool(tokenIn, tokenOut, fee));
 
@@ -238,7 +237,11 @@ IERC223Recipient
 
         address _tokenOut = resolveTokenOut(swapData.prefer223Out, swapData.pool, swapData.tokenIn, swapData.tokenOut);
 
-        uint256 balance1before = IERC20(_tokenOut).balanceOf(recipient);
+        (bool success, bytes memory data) = _tokenOut.call(abi.encodeWithSelector(IERC20.balanceOf.selector, recipient));
+
+        bool tokenNotExist = (success && data.length == 0);
+        
+        uint256 balance1before = tokenNotExist ? 0 : abi.decode(data, (uint));
         require(IERC223(token_sender).transfer(swapData.pool, amountIn, _data));
 
         return uint256(IERC20(_tokenOut).balanceOf(recipient) - balance1before);

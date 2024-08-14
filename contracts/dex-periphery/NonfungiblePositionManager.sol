@@ -13,7 +13,7 @@ import '../libraries/SelfPermit.sol';
 import '../tokens/ERC721.sol';
 import '../tokens/interfaces/IERC223Recipient.sol';
 
-import './base/PeripheryValidation.sol';
+import '../libraries/PeripheryValidation.sol';
 import './base/PoolInitializer.sol';
 import './base/LiquidityManagement.sol';
 import './base/PeripheryImmutableState.sol';

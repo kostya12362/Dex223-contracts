@@ -1,14 +1,30 @@
-pragma solidity ^0.8.0;
+pragma solidity ^0.7.0;
 
 import "../libraries/Address.sol";
 
 import "./interfaces/IERC223.sol";
 import "./interfaces/IERC223Recipient.sol";
 
+import "./interfaces/IERC20.sol";
+import "./interfaces/IERC20Metadata.sol";
+import "../introspection/ERC165.sol";
+
+interface standardERC20
+{
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 value) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 value) external returns (bool);
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+}
+
 /**
  * @title Reference implementation of the ERC223 standard token.
  */
-contract ERC223HybridToken is IERC223 {
+contract ERC223HybridToken is IERC223, ERC165 {
 
     string  private _name;
     string  private _symbol;
@@ -81,6 +97,15 @@ contract ERC223HybridToken is IERC223 {
         return _totalSupply;
     }
 
+    function standard() public pure returns (string memory)        { return "223"; }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return
+            interfaceId == type(IERC20).interfaceId ||
+            interfaceId == type(standardERC20).interfaceId ||
+            interfaceId == type(IERC223).interfaceId ||
+            super.supportsInterface(interfaceId);
+    }
 
     /**
      * @dev Returns balance of the `_owner`.
