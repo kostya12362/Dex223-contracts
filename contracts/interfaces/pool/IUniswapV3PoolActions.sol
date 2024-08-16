@@ -91,7 +91,7 @@ interface IUniswapV3PoolActions {
     /// @param amount0 The amount of token0 to send
     /// @param amount1 The amount of token1 to send
     /// @param data Any data to be passed through to the callback
-    
+
     /*
     function flash(
         address recipient,
@@ -100,7 +100,7 @@ interface IUniswapV3PoolActions {
         bytes calldata data
     ) external;
     */
-    
+
 
     /// @notice Increase the maximum number of price and liquidity observations that this pool will store
     /// @dev This method is no-op if the pool already has an observationCardinalityNext greater than or equal to

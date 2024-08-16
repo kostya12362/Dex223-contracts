@@ -22,6 +22,7 @@ import '../libraries/TickMath.sol';
 import '../libraries/LiquidityMath.sol';
 // import './libraries/SqrtPriceMath.sol';
 import '../libraries/SwapMath.sol';
+import '../libraries/PeripheryValidation.sol';
 
 import './interfaces/IDex223PoolDeployer.sol';
 import './interfaces/IDex223Factory.sol';
@@ -32,7 +33,7 @@ import './interfaces/callback/IUniswapV3SwapCallback.sol';
 import './interfaces/callback/IUniswapV3FlashCallback.sol';
 */
 
-contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
+contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
     using LowGasSafeMath for uint256;
     using LowGasSafeMath for int256;
     using SafeCast for uint256;
@@ -185,7 +186,6 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
     function tokenReceived(address _from, uint _value, bytes memory _data) public returns (bytes4)
     {
         // TODO: Reentrancy safety checks.
-
         swap_sender = _from;
         erc223deposit[_from][msg.sender] += _value;   // add token to user balance
         if (_data.length != 0) {
@@ -205,9 +205,10 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
         //          tokens must be extracted after the execution of the logic following the deposit.
 
         ////  Commented for testing purposes.
-        ////  if (erc223deposit[_from][msg.sender] != 0) TransferHelper.safeTransfer(msg.sender, _from, erc223deposit[_from][msg.sender]);
-
         // TODO: Auto-extract excess of deposited ERC-223 tokens after the main logic of the func.
+        // TODO: uncommented for auto tests to work properly
+        if (erc223deposit[_from][msg.sender] != 0) TransferHelper.safeTransfer(msg.sender, _from, erc223deposit[_from][msg.sender]);
+
         swap_sender = address(0);
         return 0x8943ec02;
     }
@@ -232,9 +233,9 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
     }
 
     /// @dev Returns the block timestamp truncated to 32 bits, i.e. mod 2**32. This method is overridden in tests.
-    /*function _blockTimestamp() internal view virtual returns (uint32) {
+    function _blockTimestamp() internal view virtual override returns (uint32) {
         return uint32(block.timestamp); // truncation is desired
-    } */
+    }
 
     /// @dev Get the pool's balance of token0
     /// @dev This function is gas optimized to avoid a redundant extcodesize check in addition to the returndatasize
@@ -318,7 +319,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
                 secondsOutsideLower - secondsOutsideUpper
             );
         } else if (_slot0.tick < tickUpper) {
-            uint32 time = uint32(block.timestamp);
+            uint32 time = _blockTimestamp();
             (int56 tickCumulative, uint160 secondsPerLiquidityCumulativeX128) =
                 observations.observeSingle(
                     time,
@@ -354,7 +355,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
     {
         return
             observations.observe(
-                uint32(block.timestamp),
+                _blockTimestamp(),
                 secondsAgos,
                 slot0.tick,
                 slot0.observationIndex,
@@ -385,7 +386,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
 
         int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
 
-        (uint16 cardinality, uint16 cardinalityNext) = observations.initialize(uint32(block.timestamp));
+        (uint16 cardinality, uint16 cardinalityNext) = observations.initialize(_blockTimestamp());
 
         slot0 = Slot0({
             sqrtPriceX96: sqrtPriceX96,
@@ -423,7 +424,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
         uint128 amount1Requested,
         bool token0_223,
         bool token1_223
-    ) external override lock returns (uint128 amount0, uint128 amount1) {
+    ) external override lock  returns (uint128 amount0, uint128 amount1) {
         (bool success, bytes memory retdata) = pool_lib.delegatecall(abi.encodeWithSignature("collect(address,int24,int24,uint128,uint128,bool,bool)", recipient, tickLower, tickUpper, amount0Requested, amount1Requested, token0_223, token1_223));
         require(success);
         return abi.decode(retdata, (uint128, uint128));
@@ -435,12 +436,11 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
         int24 tickLower,
         int24 tickUpper,
         uint128 amount
-    ) external override lock returns (uint256 amount0, uint256 amount1) {
+    ) external override lock  returns (uint256 amount0, uint256 amount1) {
         (bool success, bytes memory retdata) = pool_lib.delegatecall(abi.encodeWithSignature("burn(int24,int24,uint128)", tickLower, tickUpper, amount));
         require(success);
         return abi.decode(retdata, (uint256, uint256));
     }
-
 
     /// @inheritdoc IUniswapV3PoolActions
     function swap(
@@ -450,10 +450,9 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
         uint160 sqrtPriceLimitX96,
         bool prefer223,
         bytes memory data
-    ) external override adjustableSender /*noDelegateCall*/ // noDelegateCall will not prevent delegatecalling
+    ) external virtual override adjustableSender // noDelegateCall will not prevent delegatecalling
                                                         // this method from the same contract via `tokenReceived` of ERC-223
      returns (int256 amount0, int256 amount1) {
-
         (bool success, bytes memory retdata) = pool_lib.delegatecall(abi.encodeWithSignature("swap(address,bool,int256,uint160,bool,bytes)", recipient, zeroForOne, amountSpecified, sqrtPriceLimitX96, prefer223, data));
 
         if (success) {
@@ -466,6 +465,30 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
                 revert(ptr, 32)
             }
         }
+    }
+
+    /// @dev to make direct swap via pool with deadline and slippage
+    function swapExactInput(
+        address recipient,
+        bool zeroForOne,
+        int256 amountSpecified,
+        uint256 amountOutMinimum,
+        uint160 sqrtPriceLimitX96,
+        bool prefer223,
+        bytes memory data,
+        uint256 deadline
+    ) external virtual checkDeadline(deadline) returns (uint256 amountOut) {
+        (bool success, bytes memory retdata) = pool_lib.delegatecall(abi.encodeWithSignature("swap(address,bool,int256,uint160,bool,bytes)", recipient, zeroForOne, amountSpecified, sqrtPriceLimitX96, prefer223, data));
+
+        int256 amount0;
+        int256 amount1;
+
+        require(success);
+        ( amount0,  amount1) = abi.decode(retdata, (int256, int256));
+
+        amountOut = uint256(-(zeroForOne ? amount1 : amount0));
+
+        require(amountOut >= amountOutMinimum, 'Too little received');
     }
 
     /// @inheritdoc IUniswapV3PoolActions
@@ -532,7 +555,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall {
         address recipient,
         uint128 amount0Requested,
         uint128 amount1Requested
-    ) external override lock onlyFactoryOwner returns (uint128 amount0, uint128 amount1) {
+    ) external override lock onlyFactoryOwner  returns (uint128 amount0, uint128 amount1) {
         amount0 = amount0Requested > protocolFees.token0 ? protocolFees.token0 : amount0Requested;
         amount1 = amount1Requested > protocolFees.token1 ? protocolFees.token1 : amount1Requested;
 
