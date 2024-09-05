@@ -72,15 +72,16 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         require(tokenA_erc20 != address(0));
         require(tokenB_erc20 != address(0));
 
-        // TODO enable these checks ? or use values from identifyTokens ?
         require(tokenA_erc223 != address(0));
         require(tokenB_erc223 != address(0));
 
         // pool correctness safety checks via Converter.
-        (address _token0_erc20, address _token0_erc223, uint8 _token0_standard) = identifyTokens(tokenA_erc20, tokenA_erc223);
+//        (address _token0_erc20, address _token0_erc223, uint8 _token0_standard) 
+        uint8 _token0_standard = identifyTokens(tokenA_erc20, tokenA_erc223);
         require(_token0_standard == 20);
 
-        (address _token1_erc20, address _token1_erc223, uint8 _token1_standard) = identifyTokens(tokenB_erc20, tokenB_erc223);
+//        (address _token1_erc20, address _token1_erc223, uint8 _token1_standard)
+        uint8 _token1_standard = identifyTokens(tokenB_erc20, tokenB_erc223);
         require(_token1_standard == 20);
 
         if(tokenA_erc20 > tokenB_erc20)
@@ -122,9 +123,8 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         owner = _owner;
     }
 
-    function identifyTokens(address _token, address _token223) internal view returns (address erc20_address, address erc223_address, uint8 origin)
+    function identifyTokens(address _token20, address _token223) internal view returns (uint8 origin)
     {
-        // TODO we can limit returns by only origin - other values are not used
         // origin      << address of the token origin (always exists)
         // originERC20 << if the origins standard is ERC20 or not
         // converted   << alternative version that would be created via ERC-7417 converter, may not exist
@@ -132,48 +132,121 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
         // Not using the standard introspection now but better check it for safety in production.
         // bytes memory erc223_output = bytes("0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000033232330000000000000000000000000000000000000000000000000000000000");
-
-        (bool success, bytes memory data) = _token.staticcall(abi.encodeWithSelector(0x5a3b7e42));
-        if (success && data.length > 0) {
-            if(converter.isWrapper(_token))
-            {
-                return (converter.getERC20OriginFor(_token), _token, 223);
-            }
-            else
-            {
-                return (converter.predictWrapperAddress(_token, false), _token, 223);
-            }
-        }
-        else
+        if(converter.isWrapper(_token20))
         {
-            if(converter.isWrapper(_token))
+            address origin = converter.getERC20OriginFor(_token20);
+            if (origin == address(0)) 
             {
-                return (_token, converter.getERC223OriginFor(_token), 20);
+                return 20;
             }
-            else
+            // NOTE we don't compare _token223 & origin here. But maybe should. 
+            return 223;
+        }
+        
+        if (converter.isWrapper(_token223))
+        {
+            address origin = converter.getERC20OriginFor(_token223);
+            if (origin == address(0)) 
             {
-                address _tokenWrapper20 = converter.predictWrapperAddress(_token223, false);
-                if (_tokenWrapper20 == _token) {
-                    return (_token, _token223, 20);
-                }
-
-                address _tokenWrapper223 = converter.predictWrapperAddress(_token223, true);
-                if (_tokenWrapper223 == _token) {
-                    return (_token223, _token, 223);
-                }
-
-                _tokenWrapper223 = converter.predictWrapperAddress(_token, true);
-                if (_tokenWrapper223 == _token223) {
-                    return (_token, _token223, 20);
-                }
-//                    return (_token, converter.predictWrapperAddress(_token, true), 20);
+                return 223;
             }
+            
+            if (origin == _token20)
+            {
+                return 20;
+            }
+
+            return 223;
         }
 
-        // if all checks fail - assume that everything is OK
-        // TODO here we can try to check ERC165 to be sure that _token is ERC20
-        return (_token, _token223, 20);
+        (bool success, bytes memory data) = _token20.staticcall(abi.encodeWithSelector(0x70a08231,_token20));
+        if (success && data.length > 0)  // means contract exists
+        {
+            address origin = converter.predictWrapperAddress(_token20, true);
+            if (origin == _token223) {
+                return 20;
+            }
+
+            return 223;
+        }
+        
+        address origin = converter.predictWrapperAddress(_token223, false);
+        if (origin == _token20)
+        {
+            return 20;
+        }
+        
+        return 223;
     }
+        
+
+//    function identifyTokens(address _token, address _token223) internal view returns (address erc20_address, address erc223_address, uint8 origin)
+//    {
+//        // TODO we can limit returns by only origin - other values are not used
+//        // origin      << address of the token origin (always exists)
+//        // originERC20 << if the origins standard is ERC20 or not
+//        // converted   << alternative version that would be created via ERC-7417 converter, may not exist
+//        //                can be predicted as its created via CREATE2
+//
+//        // Not using the standard introspection now but better check it for safety in production.
+//        // bytes memory erc223_output = bytes("0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000033232330000000000000000000000000000000000000000000000000000000000");
+//
+//        // TODO implement some way to detect WETH tokens (!) 
+//        (bool success, ) = _token.staticcall(abi.encodeWithSignature('withdraw(uint256)',0));
+//        bytes memory data;
+//        if (success) {
+//            success = false;
+//            data = "";
+//        } else {
+//            (success, data) = _token.staticcall(abi.encodeWithSelector(0x5a3b7e42));
+//        }
+//        if (success && data.length > 0) {
+//            console.log('if (success && data.length > 0)');
+//            if(converter.isWrapper(_token))
+//            {
+//                console.log('if(converter.isWrapper(_token))');
+//                return (converter.getERC20OriginFor(_token), _token, 223);
+//            }
+//            else
+//            {
+//                console.log('else if(converter.isWrapper(_token))');
+//                return (converter.predictWrapperAddress(_token, false), _token, 223);
+//            }
+//        }
+//        else
+//        {
+//            console.log('else if (success && data.length > 0)');
+//            if(converter.isWrapper(_token))
+//            {
+//                console.log('if(converter.isWrapper(_token))');
+//                return (_token, converter.getERC223OriginFor(_token), 20);
+//            }
+//            else
+//            {
+//                console.log('else if(converter.isWrapper(_token))');
+//                address _tokenWrapper20 = converter.predictWrapperAddress(_token223, false);
+//                if (_tokenWrapper20 == _token) {
+//                    return (_token, _token223, 20);
+//                }
+//
+//                address _tokenWrapper223 = converter.predictWrapperAddress(_token223, true);
+//                if (_tokenWrapper223 == _token) {
+//                    return (_token223, _token, 223);
+//                }
+//
+//                _tokenWrapper223 = converter.predictWrapperAddress(_token, true);
+//                if (_tokenWrapper223 == _token223) {
+//                    return (_token, _token223, 20);
+//                }
+////                    return (_token, converter.predictWrapperAddress(_token, true), 20);
+//            }
+//        }
+//
+//        // if all checks fail - assume that everything is OK
+//        // TODO here we can try to check ERC165 to be sure that _token is ERC20
+//        console.log('return defaults');
+//        return (_token, _token223, 20);
+//    }
 
 
     // @inheritdoc IUniswapV3Factory
