@@ -3,12 +3,32 @@ pragma solidity >=0.7.6;
 pragma abicoder v2;
 
 import './interfaces/IDex223Factory.sol';
-import '../interfaces/IERC20Minimal.sol';
 import './interfaces/IDex223Autolisting.sol';
+import '../interfaces/ITokenConverter.sol';
+import '../interfaces/IERC20Minimal.sol';
+import '../interfaces/ISwapRouter.sol';
+import '../libraries/TickMath.sol';
+import '../../tokens/interfaces/IERC223.sol';
+
+interface IDex223Pool {
+    function token0() external view returns (address, address);
+    function token1() external view returns (address, address);
+    function swapExactInput(
+        address recipient,
+        bool zeroForOne,
+        int256 amountSpecified,
+        uint256 amountOutMinimum,
+        uint160 sqrtPriceLimitX96,
+        bool prefer223,
+        bytes memory data,
+        uint256 deadline
+    ) external returns (uint256 amountOut);
+}
 
 contract MarginModule
 {
     IDex223Factory public factory;
+    ISwapRouter public router;
 
     mapping (uint256 => Order)    public orders;
     mapping (uint256 => Position) public positions;
@@ -59,8 +79,14 @@ contract MarginModule
         uint256 interest;
     }
 
-    constructor(address _factory) {
+    struct SwapCallbackData {
+        bytes path;
+        address payer;
+    }
+
+    constructor(address _factory, address _router) {
         factory = IDex223Factory(_factory);
+        router = ISwapRouter(_router);
     }
 
     function createOrder(address[] memory tokens,
@@ -220,27 +246,185 @@ contract MarginModule
         // Check if the second asset is allowed within this position.
         if(_whitelistId2 != 0)
         {
-            require(positions[_positionId].whitelistedTokens[_whitelistId2] == _asset1);
+            require(positions[_positionId].whitelistedTokens[_whitelistId2] == _asset2);
         }
         else 
         {
             require(IDex223Autolisting(positions[_positionId].whitelistedTokenList).isListed(_asset2));
         }
 
+        // check if position has enough Asset1
+        require(positions[_positionId].balances[_assetId1] >= _amount);
+        
         // Perform the swap operation.
         // We only allow direct swaps for security reasons currently.
 
         require(factory.getPool(_asset1, _asset2, _feeTier) != address(0));
-
         
-        // TODO load & use IRouter interface for ERC-20.
+        // load & use IRouter interface for ERC-20.
+        ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
+            tokenIn: _asset1, 
+            tokenOut: _asset2,
+            fee: _feeTier,
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountIn: _amount,
+            amountOutMinimum: 0,
+            sqrtPriceLimitX96: 0,
+            prefer223Out: false  // TODO should we be able to choose out token type ?
+        });
+        uint256 amountOut = ISwapRouter(router).exactInputSingle(swapParams);
+        require(amountOut > 0);
         
-        // Check if we do not exceed the set currency limit.
+        // TODO Check if we do not exceed the set currency limit.
+        
+        // add new (received) asset to Position
+        positions[positionIndex].balances[_assetId1] -= _amount;
+        positions[positionIndex].assets.push(_asset2);
+        positions[positionIndex].balances.push(amountOut);
     }
 
-    function marginSwap223() public
-    {
+    struct SwapData {
+        address pool;
+        address tokenIn;
+        address tokenIn223;
+        address tokenOut;
+        uint24 fee;
+        bool zeroForOne;
+        bool prefer223Out;
+        uint160 sqrtPriceLimitX96;
+    }
 
+    function resolveTokenOut(
+        bool prefer223Out,
+        address pool,
+        address tokenIn,
+        address tokenOut
+    ) private view returns (address) {
+        if (prefer223Out) {
+            (address _token0_erc20, address _token0_erc223) = IDex223Pool(pool).token0();
+            (, address _token1_erc223) = IDex223Pool(pool).token1();
+
+            return (_token0_erc20 == tokenIn) ? _token1_erc223 : _token0_erc223;
+        } else {
+            return tokenOut;
+        }
+    }
+    
+    function executeSwapWithDeposit(
+        uint256 amountIn,
+        address recipient,
+        SwapCallbackData memory data,
+        SwapData memory swapData
+    ) private returns (uint256 amountOut) {
+        bytes memory _data = abi.encodeWithSignature(
+            "swap(address,bool,int256,uint160,bool,bytes)",
+            recipient,
+            swapData.zeroForOne,
+            amountIn.toInt256(),
+            swapData.sqrtPriceLimitX96 == 0
+                ? (swapData.zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+                : swapData.sqrtPriceLimitX96,
+            swapData.prefer223Out,
+            data
+        );
+
+        address _tokenOut = resolveTokenOut(swapData.prefer223Out, swapData.pool, swapData.tokenIn, swapData.tokenOut);
+
+        (bool success, bytes memory data) = _tokenOut.call(abi.encodeWithSelector(IERC20Minimal.balanceOf.selector, recipient));
+
+        bool tokenNotExist = (success && data.length == 0);
+
+        uint256 balance1before = tokenNotExist ? 0 : abi.decode(data, (uint));
+        require(IERC223(SwapData.tokenIn223).transfer(swapData.pool, amountIn, _data));
+
+        return uint256(IERC20Minimal(_tokenOut).balanceOf(recipient) - balance1before);
+    }
+
+    function marginSwap223(uint256 _positionId,
+        uint256 _assetId1,
+        uint256 _whitelistId1, // Internal ID in the whitelisted array. If set to 0
+    // then the asset must be found in an auto-listing contract.
+        uint256 _whitelistId2,
+        uint256 _amount,
+        address _asset2, // TODO can it be ERC20 ?
+        uint24 _feeTier) public
+    {
+        // Only allow the owner of the position to perform trading operations with it.
+        require(positions[_positionId].owner == msg.sender);
+        address _asset1 = positions[_positionId].assets[_assetId1];
+
+        // Check if the first asset is allowed within this position.
+        if(_whitelistId1 != 0)
+        {
+            require(positions[_positionId].whitelistedTokens[_whitelistId1] == _asset1);
+        }
+        else
+        {
+            require(IDex223Autolisting(positions[_positionId].whitelistedTokenList).isListed(_asset1));
+        }
+
+        // Check if the second asset is allowed within this position.
+        if(_whitelistId2 != 0)
+        {
+            require(positions[_positionId].whitelistedTokens[_whitelistId2] == _asset1);
+        }
+        else
+        {
+            require(IDex223Autolisting(positions[_positionId].whitelistedTokenList).isListed(_asset2));
+        }
+
+        // check if position has enough Asset1
+        require(positions[_positionId].balances[_assetId1] >= _amount);
+
+        // Perform the swap operation.
+        // We only allow direct swaps for security reasons currently.
+
+        
+        address pool = factory.getPool(_asset1, _asset2, _feeTier); 
+        require(pool != address(0));
+        
+        address _asset1_20;
+        address _asset2_20;
+
+        // we need to use ERC20 version of Asset1 and Asset2 
+        (address token0_20, address token0_223) = IDex223Pool.token0();
+        (address token1_20, ) = IDex223Pool.token1();
+        if (token0_223 == _asset1) {
+            _asset1_20 = token0_20;
+            _asset2_20 = token1_20;
+        } else {
+            _asset2_20 = token0_20;
+            _asset1_20 = token1_20;            
+        }
+
+        SwapData memory swapData = SwapData({
+            pool: pool,
+            tokenIn: _asset1_20,
+            tokenIn223: _asset1,
+            tokenOut: _asset2_20,
+            fee: _feeTier,
+            zeroForOne: (_asset1_20 < _asset2_20),
+            prefer223Out: true,
+            sqrtPriceLimitX96: 0
+        });
+
+        SwapCallbackData memory data = SwapCallbackData({path: abi.encodePacked(_asset1_20, _feeTier, _asset2_20), payer: address(this)});
+        
+        uint256 amountOut = executeSwapWithDeposit(
+            _amount,
+            address(this),
+            data,
+            swapData
+        );
+        require(amountOut > 0);
+
+        // TODO Check if we do not exceed the set currency limit.
+
+        // add new (received) asset to Position
+        positions[positionIndex].balances[_assetId1] -= _amount;
+        positions[positionIndex].assets.push(_asset2);
+        positions[positionIndex].balances.push(amountOut);
     }
 
     function subjectToLiquidation(uint256 _positionId) public returns (bool)
