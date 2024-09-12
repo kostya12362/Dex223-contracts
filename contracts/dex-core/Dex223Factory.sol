@@ -178,80 +178,11 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         
         return 223;
     }
-        
-
-//    function identifyTokens(address _token, address _token223) internal view returns (address erc20_address, address erc223_address, uint8 origin)
-//    {
-//        // TODO we can limit returns by only origin - other values are not used
-//        // origin      << address of the token origin (always exists)
-//        // originERC20 << if the origins standard is ERC20 or not
-//        // converted   << alternative version that would be created via ERC-7417 converter, may not exist
-//        //                can be predicted as its created via CREATE2
-//
-//        // Not using the standard introspection now but better check it for safety in production.
-//        // bytes memory erc223_output = bytes("0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000033232330000000000000000000000000000000000000000000000000000000000");
-//
-//        // TODO implement some way to detect WETH tokens (!) 
-//        (bool success, ) = _token.staticcall(abi.encodeWithSignature('withdraw(uint256)',0));
-//        bytes memory data;
-//        if (success) {
-//            success = false;
-//            data = "";
-//        } else {
-//            (success, data) = _token.staticcall(abi.encodeWithSelector(0x5a3b7e42));
-//        }
-//        if (success && data.length > 0) {
-//            console.log('if (success && data.length > 0)');
-//            if(converter.isWrapper(_token))
-//            {
-//                console.log('if(converter.isWrapper(_token))');
-//                return (converter.getERC20OriginFor(_token), _token, 223);
-//            }
-//            else
-//            {
-//                console.log('else if(converter.isWrapper(_token))');
-//                return (converter.predictWrapperAddress(_token, false), _token, 223);
-//            }
-//        }
-//        else
-//        {
-//            console.log('else if (success && data.length > 0)');
-//            if(converter.isWrapper(_token))
-//            {
-//                console.log('if(converter.isWrapper(_token))');
-//                return (_token, converter.getERC223OriginFor(_token), 20);
-//            }
-//            else
-//            {
-//                console.log('else if(converter.isWrapper(_token))');
-//                address _tokenWrapper20 = converter.predictWrapperAddress(_token223, false);
-//                if (_tokenWrapper20 == _token) {
-//                    return (_token, _token223, 20);
-//                }
-//
-//                address _tokenWrapper223 = converter.predictWrapperAddress(_token223, true);
-//                if (_tokenWrapper223 == _token) {
-//                    return (_token223, _token, 223);
-//                }
-//
-//                _tokenWrapper223 = converter.predictWrapperAddress(_token, true);
-//                if (_tokenWrapper223 == _token223) {
-//                    return (_token, _token223, 20);
-//                }
-////                    return (_token, converter.predictWrapperAddress(_token, true), 20);
-//            }
-//        }
-//
-//        // if all checks fail - assume that everything is OK
-//        // TODO here we can try to check ERC165 to be sure that _token is ERC20
-//        console.log('return defaults');
-//        return (_token, _token223, 20);
-//    }
 
 
     // @inheritdoc IUniswapV3Factory
     function enableFeeAmount(uint24 fee, int24 tickSpacing) public override {
-        /*  COMMENTED FOR TESTING PURPOSES
+        
         require(msg.sender == owner);
         require(fee < 1000000);
         // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
@@ -262,7 +193,6 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
         feeAmountTickSpacing[fee] = tickSpacing;
         emit FeeAmountEnabled(fee, tickSpacing);
-        */
     }
 }
 
