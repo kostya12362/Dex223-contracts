@@ -237,11 +237,11 @@ IERC223Recipient
 
         address _tokenOut = resolveTokenOut(swapData.prefer223Out, swapData.pool, swapData.tokenIn, swapData.tokenOut);
 
-        (bool success, bytes memory data) = _tokenOut.call(abi.encodeWithSelector(IERC20.balanceOf.selector, recipient));
+        (bool success, bytes memory resdata) = _tokenOut.call(abi.encodeWithSelector(IERC20.balanceOf.selector, recipient));
 
-        bool tokenNotExist = (success && data.length == 0);
+        bool tokenNotExist = (success && resdata.length == 0);
         
-        uint256 balance1before = tokenNotExist ? 0 : abi.decode(data, (uint));
+        uint256 balance1before = tokenNotExist ? 0 : abi.decode(resdata, (uint));
         require(IERC223(token_sender).transfer(swapData.pool, amountIn, _data));
 
         return uint256(IERC20(_tokenOut).balanceOf(recipient) - balance1before);
