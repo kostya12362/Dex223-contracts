@@ -76,8 +76,10 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         require(tokenB_erc223 != address(0));
 
         // pool correctness safety checks via Converter.
-        require(identifyTokens(tokenA_erc20, tokenA_erc223) == 20);
-        require(identifyTokens(tokenB_erc20, tokenB_erc223) == 20);
+        uint8 _token0_standard = identifyTokens(tokenA_erc20, tokenA_erc223);
+        require(_token0_standard == 20);
+        uint8 _token1_standard = identifyTokens(tokenB_erc20, tokenB_erc223);
+        require(_token1_standard == 20);
 
         if(tokenA_erc20 > tokenB_erc20)
         {
