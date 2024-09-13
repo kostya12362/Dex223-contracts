@@ -76,13 +76,8 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         require(tokenB_erc223 != address(0));
 
         // pool correctness safety checks via Converter.
-//        (address _token0_erc20, address _token0_erc223, uint8 _token0_standard) 
-        uint8 _token0_standard = identifyTokens(tokenA_erc20, tokenA_erc223);
-        require(_token0_standard == 20);
-
-//        (address _token1_erc20, address _token1_erc223, uint8 _token1_standard)
-        uint8 _token1_standard = identifyTokens(tokenB_erc20, tokenB_erc223);
-        require(_token1_standard == 20);
+        require(identifyTokens(tokenA_erc20, tokenA_erc223) == 20);
+        require(identifyTokens(tokenB_erc20, tokenB_erc223) == 20);
 
         if(tokenA_erc20 > tokenB_erc20)
         {
@@ -134,24 +129,23 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         // bytes memory erc223_output = bytes("0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000033232330000000000000000000000000000000000000000000000000000000000");
         if(converter.isWrapper(_token20))
         {
-            address origin = converter.getERC20OriginFor(_token20);
-            if (origin == address(0)) 
+            if (converter.getERC20OriginFor(_token20) == address(0))
             {
                 return 20;
             }
             // NOTE we don't compare _token223 & origin here. But maybe should. 
             return 223;
         }
-        
+
         if (converter.isWrapper(_token223))
         {
-            address origin = converter.getERC20OriginFor(_token223);
-            if (origin == address(0)) 
+            address originAddress = converter.getERC20OriginFor(_token223);
+            if (originAddress == address(0))
             {
                 return 223;
             }
-            
-            if (origin == _token20)
+
+            if (originAddress == _token20)
             {
                 return 20;
             }
@@ -162,27 +156,26 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         (bool success, bytes memory data) = _token20.staticcall(abi.encodeWithSelector(0x70a08231,_token20));
         if (success && data.length > 0)  // means contract exists
         {
-            address origin = converter.predictWrapperAddress(_token20, true);
-            if (origin == _token223) {
+            if (converter.predictWrapperAddress(_token20, true) == _token223) {
                 return 20;
             }
 
             return 223;
         }
-        
-        address origin = converter.predictWrapperAddress(_token223, false);
-        if (origin == _token20)
+
+        address predictAddress = converter.predictWrapperAddress(_token223, false);
+        if (predictAddress == _token20)
         {
             return 20;
         }
-        
+
         return 223;
     }
 
 
     // @inheritdoc IUniswapV3Factory
     function enableFeeAmount(uint24 fee, int24 tickSpacing) public override {
-        
+
         require(msg.sender == owner);
         require(fee < 1000000);
         // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
@@ -207,23 +200,23 @@ contract PoolAddressHelper
     }
 
     function computeAddress(address factory,
-                            address tokenA,
-                            address tokenB,
-                            uint24 fee)
-                            external pure returns (address _pool)
+        address tokenA,
+        address tokenB,
+        uint24 fee)
+    external pure returns (address _pool)
     {
         require(tokenA < tokenB, "token1 > token0");
         //---------------- calculate pool address
-            bytes32 _POOL_INIT_CODE_HASH  = hashPoolCode(getPoolCreationCode());
-            bytes32 pool_hash = keccak256(
+        bytes32 _POOL_INIT_CODE_HASH  = hashPoolCode(getPoolCreationCode());
+        bytes32 pool_hash = keccak256(
             abi.encodePacked(
                 hex'ff',
                 factory,
                 keccak256(abi.encode(tokenA, tokenB, fee)),
                 _POOL_INIT_CODE_HASH
             )
-            );
-            bytes20 addressBytes = bytes20(pool_hash << (256 - 160));
-            _pool = address(uint160(addressBytes));
+        );
+        bytes20 addressBytes = bytes20(pool_hash << (256 - 160));
+        _pool = address(uint160(addressBytes));
     }
 }
