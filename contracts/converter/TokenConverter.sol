@@ -62,6 +62,16 @@ interface IERC20WrapperToken {
     function burn(address _recipient, uint256 _quantity) external;
 }
 
+contract ERC20Rescue
+{
+    address public extractor = 0x01000B5fE61411C466b70631d7fF070187179Bbf;
+
+    function rescueERC20(address _token, uint256 _amount) external 
+    {
+        IERC20(_token).transfer(msg.sender, _amount);
+    }
+}
+
 
 /**
     ERC-223 Wrapper is a token that is created by the TokenConverter contract
@@ -70,7 +80,7 @@ interface IERC20WrapperToken {
     even though we do not recommend using this pattern to transfer ERC-223 tokens.
 */
 
-contract ERC223WrapperToken is IERC223, ERC165
+contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
 {
     address public creator = msg.sender;
     address private wrapper_for;
@@ -80,13 +90,6 @@ contract ERC223WrapperToken is IERC223, ERC165
     event Transfer(address indexed from, address indexed to, uint256 amount);
     event TransferData(bytes data);
     event Approval(address indexed owner, address indexed spender, uint256 amount);
-
-    /*
-    constructor(address _wrapper_for)
-    {
-        wrapper_for = _wrapper_for;
-    }
-    */
 
     function set(address _wrapper_for) external
     {
@@ -189,7 +192,7 @@ contract ERC223WrapperToken is IERC223, ERC165
     }
 }
 
-contract ERC20WrapperToken is IERC20, ERC165
+contract ERC20WrapperToken is IERC20, ERC165, ERC20Rescue
 {
     address public creator = msg.sender;
     address public wrapper_for;
