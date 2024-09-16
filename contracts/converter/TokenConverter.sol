@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity >=0.8.19;
+pragma solidity =0.8.19;
 
 import "../tokens/interfaces/IERC20.sol";
 import "../tokens/interfaces/IERC20Metadata.sol";
@@ -164,7 +164,7 @@ contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
     function name() public view override returns (string memory)   { return IERC20Metadata(wrapper_for).name(); }
     function symbol() public view override returns (string memory) { return string.concat(IERC20Metadata(wrapper_for).name(), "223"); }
     function decimals() public view override returns (uint8)       { return IERC20Metadata(wrapper_for).decimals(); }
-    function standard() public pure returns (string memory)        { return "223"; }
+    function standard() public pure returns (uint32)               { return 223; }
     function origin() public view returns (address)                { return wrapper_for; }
 
 
@@ -317,7 +317,7 @@ contract ERC20WrapperToken is IERC20, ERC165, ERC20Rescue
     }
 }
 
-contract TokenStandardConverter is IERC223Recipient, ERC20Rescue
+contract TokenStandardConverter is IERC223Recipient
 {
     event ERC223WrapperCreated(address indexed _token, address indexed _ERC223Wrapper);
     event ERC20WrapperCreated(address indexed _token, address indexed _ERC20Wrapper);
