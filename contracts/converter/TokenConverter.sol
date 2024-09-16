@@ -62,6 +62,16 @@ interface IERC20WrapperToken {
     function burn(address _recipient, uint256 _quantity) external;
 }
 
+contract ERC20Rescue
+{
+    address public extractor = 0x01000B5fE61411C466b70631d7fF070187179Bbf;
+
+    function rescueERC20(address _token, uint256 _amount) external 
+    {
+        IERC20(_token).transfer(msg.sender, _amount);
+    }
+}
+
 
 /**
     ERC-223 Wrapper is a token that is created by the TokenConverter contract
@@ -70,7 +80,7 @@ interface IERC20WrapperToken {
     even though we do not recommend using this pattern to transfer ERC-223 tokens.
 */
 
-contract ERC223WrapperToken is IERC223, ERC165
+contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
 {
     address public creator = msg.sender;
     address private wrapper_for;
@@ -80,13 +90,6 @@ contract ERC223WrapperToken is IERC223, ERC165
     event Transfer(address indexed from, address indexed to, uint256 amount);
     event TransferData(bytes data);
     event Approval(address indexed owner, address indexed spender, uint256 amount);
-
-    /*
-    constructor(address _wrapper_for)
-    {
-        wrapper_for = _wrapper_for;
-    }
-    */
 
     function set(address _wrapper_for) external
     {
@@ -101,6 +104,10 @@ contract ERC223WrapperToken is IERC223, ERC165
     function totalSupply() public view override returns (uint256)             { return _totalSupply; }
     function balanceOf(address _owner) public view override returns (uint256) { return balances[_owner]; }
 
+
+    /**
+     * @dev The ERC165 introspection function.
+     */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return
             interfaceId == type(IERC20).interfaceId ||
@@ -110,6 +117,14 @@ contract ERC223WrapperToken is IERC223, ERC165
             super.supportsInterface(interfaceId);
     }
 
+    /**
+     * @dev Standard ERC-223 transfer function.
+     *      Calls _to if it is a contract. Does not transfer tokens to contracts
+     *      which do not explicitly declare the tokenReceived function.
+     * @param _to    - transfer recipient. Can be contract or EOA.
+     * @param _value - the quantity of tokens to transfer.
+     * @param _data  - metadata to send alongside the transaction. Can be used to encode subsequent calls in the recipient.
+     */
     function transfer(address _to, uint _value, bytes calldata _data) public payable override returns (bool success)
     {
         balances[msg.sender] = balances[msg.sender] - _value;
@@ -124,6 +139,14 @@ contract ERC223WrapperToken is IERC223, ERC165
         return true;
     }
 
+    /**
+     * @dev Standard ERC-223 transfer function without _data parameter. It is supported for 
+     *      backwards compatibility with ERC-20 services.
+     *      Calls _to if it is a contract. Does not transfer tokens to contracts
+     *      which do not explicitly declare the tokenReceived function.
+     * @param _to    - transfer recipient. Can be contract or EOA.
+     * @param _value - the quantity of tokens to transfer.
+     */
     function transfer(address _to, uint _value) public override returns (bool success)
     {
         bytes memory _empty = hex"00000000";
@@ -144,6 +167,12 @@ contract ERC223WrapperToken is IERC223, ERC165
     function standard() public pure returns (string memory)        { return "223"; }
     function origin() public view returns (address)                { return wrapper_for; }
 
+
+    /**
+     * @dev Minting function which will only be called by the converter contract.
+     * @param _recipient - the address which will receive tokens.
+     * @param _quantity  - the number of tokens to create.
+     */
     function mint(address _recipient, uint256 _quantity) external
     {
         require(msg.sender == creator, "Wrapper Token: Only the creator contract can mint wrapper tokens.");
@@ -151,6 +180,11 @@ contract ERC223WrapperToken is IERC223, ERC165
         _totalSupply += _quantity;
     }
 
+    /**
+     * @dev Burning function which will only be called by the converter contract.
+     * @param _quantity  - the number of tokens to destroy. TokenConverter can only destroy tokens on it's own address.
+     *                     Only the token converter is allowed to burn wrapper-tokens.
+     */
     function burn(uint256 _quantity) external
     {
         require(msg.sender == creator, "Wrapper Token: Only the creator contract can destroy wrapper tokens.");
@@ -189,7 +223,7 @@ contract ERC223WrapperToken is IERC223, ERC165
     }
 }
 
-contract ERC20WrapperToken is IERC20, ERC165
+contract ERC20WrapperToken is IERC20, ERC165, ERC20Rescue
 {
     address public creator = msg.sender;
     address public wrapper_for;
@@ -283,10 +317,8 @@ contract ERC20WrapperToken is IERC20, ERC165
     }
 }
 
-contract TokenStandardConverter is IERC223Recipient
+contract TokenStandardConverter is IERC223Recipient, ERC20Rescue
 {
-    address public ownerMultisig;
-
     event ERC223WrapperCreated(address indexed _token, address indexed _ERC223Wrapper);
     event ERC20WrapperCreated(address indexed _token, address indexed _ERC20Wrapper);
 
@@ -327,7 +359,12 @@ contract TokenStandardConverter is IERC223Recipient
         return (address(erc223Origins[_token]));
     }
 
-    function predictWrapperAddress(address _token, bool _isERC20) view external returns (address)
+    function predictWrapperAddress(address _token,
+                                   bool    _isERC20 // Is the provided _token a ERC-20 or not?
+                                                    // If it is set as ERC-20 then we will predict the address of a 
+                                                    // ERC-223 wrapper for that token.
+                                                    // Otherwise we will predict ERC-20 wrapper address.
+                                  ) view external returns (address)
     {
         bytes memory _bytecode;
         if(_isERC20)
@@ -468,39 +505,11 @@ contract TokenStandardConverter is IERC223Recipient
         return erc20Origins[_token] != address(0) || erc223Origins[_token] != address(0);
     }
 
-/*
-    function convertERC223toERC20(address _from, uint256 _amount) public returns (bool)
-    {
-        // If there is no active wrapper for a token that user wants to wrap
-        // then create it.
-        if(address(erc20Wrappers[msg.sender]) == address(0))
-        {
-            createERC223Wrapper(msg.sender);
-        }
-
-        erc20Wrappers[msg.sender].mint(_from, _amount);
-
-        return true;
-    }
-*/
-
-    function rescueERC20(address _token) external {
-        require(msg.sender == ownerMultisig, "ERROR: Only owner can do this.");
-        require(address(erc20Wrappers[_token]) == address(0), "Withdrawing ERC-223 origin is not allowed.");
-        uint256 _stuckTokens = IERC20(_token).balanceOf(address(this)) - erc20Supply[_token];
-        //IERC20(_token).transfer(msg.sender, _stuckTokens);
-        safeTransfer(_token, msg.sender, _stuckTokens);
-    }
-
-    function transferOwnership(address _newOwner) public
-    {
-        require(msg.sender == ownerMultisig, "ERROR: Only owner can call this function.");
-        ownerMultisig = _newOwner;
-    }
-
     // ************************************************************
-    // Functions that address problems with tokens that pretend to be ERC-20
+    // Functions that addresses problems with tokens that pretend to be ERC-20
     // but in fact are not compatible with the ERC-20 standard transferring methods.
+    // USDT, for example, is not a ERC-20 token as it doesn't match the ERC-20 specification.
+    //
     // EIP20 https://eips.ethereum.org/EIPS/eip-20
     // ************************************************************
     function safeTransfer(address token, address to, uint value) internal {
