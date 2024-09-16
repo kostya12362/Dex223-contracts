@@ -76,8 +76,8 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         require(tokenB_erc223 != address(0));
 
         // pool correctness safety checks via Converter.
-        require(identifyTokens(tokenA_erc20, tokenA_erc223) == 20);
-        require(identifyTokens(tokenB_erc20, tokenB_erc223) == 20);
+        require(identifyTokens(tokenA_erc20, tokenA_erc223));
+        require(identifyTokens(tokenB_erc20, tokenB_erc223));
 
         if(tokenA_erc20 > tokenB_erc20)
         {
@@ -118,23 +118,24 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         owner = _owner;
     }
 
-    function identifyTokens(address _token20, address _token223) internal view returns (uint8 origin)
+    function identifyTokens(address _token20, address _token223) internal view returns (bool)
     {
         // origin      << address of the token origin (always exists)
         // originERC20 << if the origins standard is ERC20 or not
         // converted   << alternative version that would be created via ERC-7417 converter, may not exist
         //                can be predicted as its created via CREATE2
-
-        // Not using the standard introspection now but better check it for safety in production.
-        // bytes memory erc223_output = bytes("0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000033232330000000000000000000000000000000000000000000000000000000000");
+        
         if(converter.isWrapper(_token20))
         {
-            if (converter.getERC20OriginFor(_token20) == address(0))
+            if (converter.getERC223OriginFor(_token20) == _token223)
             {
-                return 20;
+                // call standard() - check if  _token223 is really ERC223
+                (bool success, bytes memory data) = _token223.staticcall(abi.encodeWithSelector(0x5a3b7e42));
+                if (success && data.length > 0) {
+                    return true;
+                }
             }
-            // NOTE we don't compare _token223 & origin here. But maybe should. 
-            return 223;
+            return false;
         }
 
         if (converter.isWrapper(_token223))
@@ -142,34 +143,43 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
             address originAddress = converter.getERC20OriginFor(_token223);
             if (originAddress == address(0))
             {
-                return 223;
+                return false;
             }
 
             if (originAddress == _token20)
             {
-                return 20;
+                // call standard() - check if  _token223 is really ERC223
+                (bool success, bytes memory data) = _token223.staticcall(abi.encodeWithSelector(0x5a3b7e42));
+                if (success && data.length > 0) {
+                    return true;
+                }
             }
 
-            return 223;
+            return false;
         }
 
+        // call balanceOf()
         (bool success, bytes memory data) = _token20.staticcall(abi.encodeWithSelector(0x70a08231,_token20));
         if (success && data.length > 0)  // means contract exists
         {
             if (converter.predictWrapperAddress(_token20, true) == _token223) {
-                return 20;
+                return true;
             }
 
-            return 223;
+            return false;
         }
 
         address predictAddress = converter.predictWrapperAddress(_token223, false);
         if (predictAddress == _token20)
         {
-            return 20;
+            // call standard() - check if  _token223 is really ERC223
+            (bool success, bytes memory data) = _token223.staticcall(abi.encodeWithSelector(0x5a3b7e42));
+            if (success && data.length > 0) {
+                return true;
+            }
         }
 
-        return 223;
+        return false;
     }
 
 
