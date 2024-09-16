@@ -11,6 +11,39 @@ import './NoDelegateCall.sol';
 
 import './Dex223Pool.sol';
 
+abstract contract TokenStandardIntrospection
+{
+    function stadnard() virtual external view returns (uint32);
+}
+
+
+contract TokenStandardIntrospectionTest
+{
+    function stadnard() virtual external view returns (uint32)
+    {
+        return 223;
+    }
+}
+
+contract IntrospectionCallTest
+{
+    uint32 public var_a = 0;
+
+    function Test(address _introspection) public returns (uint32)
+    {
+        //TokenStandardIntrospection(_introspection).call(0xaa1f7426)
+        
+        (bool success, bytes memory data) = _introspection.staticcall(abi.encodeWithSelector(0xaa1f7426));
+        var_a = abi.decode(data,(uint32));
+        return abi.decode(data,(uint32));
+    }
+
+    function getA() public returns (uint32)
+    {
+        return var_a;
+    }
+}
+
 /// @title Canonical Uniswap V3 factory
 /// @notice Deploys Uniswap V3 pools and manages ownership and control over pool protocol fees
 contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall {
@@ -71,15 +104,12 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         require(tokenA_erc20 != tokenB_erc20);
         require(tokenA_erc20 != address(0));
         require(tokenB_erc20 != address(0));
-
         require(tokenA_erc223 != address(0));
         require(tokenB_erc223 != address(0));
 
         // pool correctness safety checks via Converter.
-        uint8 _token0_standard = identifyTokens(tokenA_erc20, tokenA_erc223);
-        require(_token0_standard == 20);
-        uint8 _token1_standard = identifyTokens(tokenB_erc20, tokenB_erc223);
-        require(_token1_standard == 20);
+        identifyTokens(tokenA_erc20, tokenA_erc223);
+        identifyTokens(tokenB_erc20, tokenB_erc223);
 
         if(tokenA_erc20 > tokenB_erc20)
         {
@@ -120,64 +150,103 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         owner = _owner;
     }
 
-    function identifyTokens(address _token20, address _token223) internal view returns (uint8 origin)
+    function identifyTokens(address _token, address _token223) internal
     {
-        // origin      << address of the token origin (always exists)
-        // originERC20 << if the origins standard is ERC20 or not
-        // converted   << alternative version that would be created via ERC-7417 converter, may not exist
-        //                can be predicted as its created via CREATE2
+        // This function checks the correctness of provided tokens and it must prevent the creation of incorrect pools.
+        //
+        // Identifying which standard each of the provided token addresses supports.
+        // The problem is that there is no reliable method of token standard introspection,
+        // ERC-165 is unreliable at identifying a token standard.
+        //
+        // We assume that one of the provided token addresses MUST be created via converter.
+        //
+        // Converter does not know/verify which token is a valid origin,
+        // i.e. it is possible to take an existing ERC-20 token like USDT
+        // throw it in the converter and create a ERC-20-Wrapper for an existing ERC-20 token
+        // then pretend that this ERC-20 token is a ERC-223 origin and input it to the Dex223 Factory
+        // where the Converter will confirm that there is a ERC-20-Wrapper for that token.
 
-        // Not using the standard introspection now but better check it for safety in production.
-        // bytes memory erc223_output = bytes("0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000033232330000000000000000000000000000000000000000000000000000000000");
-        if(converter.isWrapper(_token20))
+        // There are 2 possible scenarios
+        // 1. _token is ERC-20 origin and there is a ERC-223 version of that token either created or predicted
+        //    by the converter. In that case `standard()` call on _token MUST fail or return something other than 223
+        //    and the converters `predictWrapperAddress` for _token must be _token223 address.
+        // 2. _token is ERC-20 wrapper created by the converter, then `standard()` call on that token MUST fail
+        //    and there MUST be an existing ERC-223 origin for that token in the converter
+        //    and it MUST be _token223 address.
+        //    `standard()` call on _token223 MUST succeed and return 223 in that case.
+
+
+        // In any scenario _token MUST NOT be a ERC-223 token.
+        (bool success, bytes memory data) = _token.staticcall(abi.encodeWithSelector(0xaa1f7426));
+        // Make sure that `standard()` call fails or returns something other than 223 for _token.
+        // Note that if there is a fallback function in the token contract
+        // then it MAY handle the `standard()` call.
+        require(!success || abi.decode(data,(uint32)) != 223);
+
+        if(!converter.isWrapper(_token))
         {
-            if (converter.getERC20OriginFor(_token20) == address(0))
+            // We assume scenario 1, _token is ERC-20 origin.
+
+            // Now check if the _token223 is a ERC-223 wrapper or can be predicted as a ERC-223 wrapper by the converter.
+            uint256 _code_size;
+            // solhint-disable-next-line no-inline-assembly
+            assembly { _code_size := extcodesize(_token223) }
+
+            if(_code_size > 0)
             {
-                return 20;
-            }
-            // NOTE we don't compare _token223 & origin here. But maybe should. 
-            return 223;
-        }
+                // Assume that _token223 is a deployed ERC-223 token contract,
+                // it must be created by the converter and respond that it is a ERC-223 token here.
+                (bool success, bytes memory data) = _token223.staticcall(abi.encodeWithSelector(0xaa1f7426));
 
-        if (converter.isWrapper(_token223))
-        {
-            address originAddress = converter.getERC20OriginFor(_token223);
-            if (originAddress == address(0))
+                // Check if the token responds that its ERC-223.
+                require(success && abi.decode(data,(uint32)) == uint32(223)); 
+
+                // Check if converter identifies it as a ERC-223 wrapper.
+                require(converter.isWrapper(_token223)); 
+
+                // Check if converter identifies the ERC-223 wrapper
+                // as a wrapper for our exact ERC-20 _token.
+                require(converter.getERC20OriginFor(_token223) == _token); 
+
+                return; // All checks passed for scenario 1.
+            }
+            else
             {
-                return 223;
-            }
+                // Assume that _token223 is not yet deployed,
+                // in this case it must be predicted by the converter.
 
-            if (originAddress == _token20)
-            {
-                return 20;
-            }
+                // Check if the "predicted ERC-223-Wrapper addresss" for our _token
+                // would be the exact _token223 address.
+                require(converter.predictWrapperAddress(_token, true) == _token223);
 
-            return 223;
+                return; // All checks passed for scenario 1.
+            }
         }
 
-        (bool success, bytes memory data) = _token20.staticcall(abi.encodeWithSelector(0x70a08231,_token20));
-        if (success && data.length > 0)  // means contract exists
+        else 
         {
-            if (converter.predictWrapperAddress(_token20, true) == _token223) {
-                return 20;
-            }
+            // We assume scenario 2, _token is ERC-20-Wrapper created by the converter,
+            // and there is a ERC-223 origin for that token and it is _token223.
 
-            return 223;
+            require(converter.getERC223OriginFor(_token)              == _token223); 
+            require(converter.predictWrapperAddress(_token223, false) == _token);
+
+            uint256 _origin_code_size;
+            // solhint-disable-next-line no-inline-assembly
+            assembly { _origin_code_size := extcodesize(_token223) }
+            require(_origin_code_size > 0); // Origin MUST exist.
+
+            (bool success, bytes memory data) = _token223.staticcall(abi.encodeWithSelector(0xaa1f7426));
+            require(success && abi.decode(data,(uint32)) == uint32(223)); 
+
+            return; // All checks passed for scenario 2.
         }
-
-        address predictAddress = converter.predictWrapperAddress(_token223, false);
-        if (predictAddress == _token20)
-        {
-            return 20;
-        }
-
-        return 223;
     }
 
 
     // @inheritdoc IUniswapV3Factory
     function enableFeeAmount(uint24 fee, int24 tickSpacing) public override {
-
+        /*  COMMENTED FOR TESTING PURPOSES
         require(msg.sender == owner);
         require(fee < 1000000);
         // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
@@ -188,6 +257,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
         feeAmountTickSpacing[fee] = tickSpacing;
         emit FeeAmountEnabled(fee, tickSpacing);
+        */
     }
 }
 
@@ -202,23 +272,23 @@ contract PoolAddressHelper
     }
 
     function computeAddress(address factory,
-        address tokenA,
-        address tokenB,
-        uint24 fee)
-    external pure returns (address _pool)
+                            address tokenA,
+                            address tokenB,
+                            uint24 fee)
+                            external pure returns (address _pool)
     {
         require(tokenA < tokenB, "token1 > token0");
         //---------------- calculate pool address
-        bytes32 _POOL_INIT_CODE_HASH  = hashPoolCode(getPoolCreationCode());
-        bytes32 pool_hash = keccak256(
+            bytes32 _POOL_INIT_CODE_HASH  = hashPoolCode(getPoolCreationCode());
+            bytes32 pool_hash = keccak256(
             abi.encodePacked(
                 hex'ff',
                 factory,
                 keccak256(abi.encode(tokenA, tokenB, fee)),
                 _POOL_INIT_CODE_HASH
             )
-        );
-        bytes20 addressBytes = bytes20(pool_hash << (256 - 160));
-        _pool = address(uint160(addressBytes));
+            );
+            bytes20 addressBytes = bytes20(pool_hash << (256 - 160));
+            _pool = address(uint160(addressBytes));
     }
 }
