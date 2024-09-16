@@ -11,39 +11,6 @@ import './NoDelegateCall.sol';
 
 import './Dex223Pool.sol';
 
-abstract contract TokenStandardIntrospection
-{
-    function stadnard() virtual external view returns (uint32);
-}
-
-
-contract TokenStandardIntrospectionTest
-{
-    function stadnard() virtual external view returns (uint32)
-    {
-        return 223;
-    }
-}
-
-contract IntrospectionCallTest
-{
-    uint32 public var_a = 0;
-
-    function Test(address _introspection) public returns (uint32)
-    {
-        //TokenStandardIntrospection(_introspection).call(0xaa1f7426)
-        
-        (bool success, bytes memory data) = _introspection.staticcall(abi.encodeWithSelector(0xaa1f7426));
-        var_a = abi.decode(data,(uint32));
-        return abi.decode(data,(uint32));
-    }
-
-    function getA() public returns (uint32)
-    {
-        return var_a;
-    }
-}
-
 /// @title Canonical Uniswap V3 factory
 /// @notice Deploys Uniswap V3 pools and manages ownership and control over pool protocol fees
 contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall {
@@ -246,7 +213,6 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
     // @inheritdoc IUniswapV3Factory
     function enableFeeAmount(uint24 fee, int24 tickSpacing) public override {
-        /*  COMMENTED FOR TESTING PURPOSES
         require(msg.sender == owner);
         require(fee < 1000000);
         // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
@@ -257,7 +223,6 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
         feeAmountTickSpacing[fee] = tickSpacing;
         emit FeeAmountEnabled(fee, tickSpacing);
-        */
     }
 }
 
