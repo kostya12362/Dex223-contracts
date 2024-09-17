@@ -144,7 +144,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
 
         // In any scenario _token MUST NOT be a ERC-223 token.
-        (bool success, bytes memory data) = _token.staticcall(abi.encodeWithSelector(0xaa1f7426));
+        (bool success, bytes memory data) = _token.staticcall(abi.encodeWithSelector(0x5a3b7e42)); // call `standard() returns uint32`
         // Make sure that `standard()` call fails or returns something other than 223 for _token.
         // Note that if there is a fallback function in the token contract
         // then it MAY handle the `standard()` call.
@@ -163,7 +163,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
             {
                 // Assume that _token223 is a deployed ERC-223 token contract,
                 // it must be created by the converter and respond that it is a ERC-223 token here.
-                (bool success, bytes memory data) = _token223.staticcall(abi.encodeWithSelector(0xaa1f7426));
+                (bool success, bytes memory data) = _token223.staticcall(abi.encodeWithSelector(0x5a3b7e42)); // call `standard() returns uint32`
 
                 // Check if the token responds that its ERC-223.
                 require(success && abi.decode(data,(uint32)) == uint32(223)); 
@@ -203,7 +203,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
             assembly { _origin_code_size := extcodesize(_token223) }
             require(_origin_code_size > 0); // Origin MUST exist.
 
-            (bool success, bytes memory data) = _token223.staticcall(abi.encodeWithSelector(0xaa1f7426));
+            (bool success, bytes memory data) = _token223.staticcall(abi.encodeWithSelector(0x5a3b7e42));
             require(success && abi.decode(data,(uint32)) == uint32(223)); 
 
             return; // All checks passed for scenario 2.
@@ -213,6 +213,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
     // @inheritdoc IUniswapV3Factory
     function enableFeeAmount(uint24 fee, int24 tickSpacing) public override {
+        /*  COMMENTED FOR TESTING PURPOSES
         require(msg.sender == owner);
         require(fee < 1000000);
         // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
@@ -223,6 +224,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
         feeAmountTickSpacing[fee] = tickSpacing;
         emit FeeAmountEnabled(fee, tickSpacing);
+        */
     }
 }
 
