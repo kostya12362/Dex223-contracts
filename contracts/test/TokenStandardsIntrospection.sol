@@ -1,6 +1,24 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
+/*
+pragma solidity ^0.4.18;
+
+contract WETH9_Test {
+    function() public payable {
+        // DO NOTHING
+    }
+}
+
+contract TokenStandard9_TEST
+{
+    function standard() public view returns (uint32)
+    {
+        return 223;
+    }
+}
+*/
+
 contract StandardIntrospection
 {
     string public _lastStandard = "ERC-X";
