@@ -145,10 +145,16 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
         // In any scenario _token MUST NOT be a ERC-223 token.
         (bool success, bytes memory data) = _token.staticcall(abi.encodeWithSelector(0x5a3b7e42)); // call `standard() returns uint32`
+        // It is important to note that the call may be handled by the fallback function
+        // of the token contract.
+        // In this case it will succeed but the returned `data` will be empty.
+                
         // Make sure that `standard()` call fails or returns something other than 223 for _token.
         // Note that if there is a fallback function in the token contract
         // then it MAY handle the `standard()` call.
-        require(!success || abi.decode(data,(uint32)) != 223);
+        require(!success              // The call failed i.e. token doesn't implement `standard()` func.
+                //|| abi.decode(data,(uint32)) != uint32(223) // The token implements `standard()` and it responds that it is not ERC-223.
+                || data.length == 0); // The call was handled by the fallback function of the token.
 
         if(!converter.isWrapper(_token))
         {
@@ -162,7 +168,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
             if(_code_size > 0)
             {
                 // Assume that _token223 is a deployed ERC-223 token contract,
-                // it must be created by the converter and respond that it is a ERC-223 token here.
+                // it MUST be created by the converter and it MUST respond that it is a ERC-223 token via standard() func.
                 (bool success, bytes memory data) = _token223.staticcall(abi.encodeWithSelector(0x5a3b7e42)); // call `standard() returns uint32`
 
                 // Check if the token responds that its ERC-223.
@@ -195,7 +201,19 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
             // We assume scenario 2, _token is ERC-20-Wrapper created by the converter,
             // and there is a ERC-223 origin for that token and it is _token223.
 
-            require(converter.getERC223OriginFor(_token)              == _token223); 
+            uint256 _erc20_code_size;
+            assembly { _erc20_code_size := extcodesize(_token) }
+
+            if(_erc20_code_size > 0)
+            {
+                // Only check if the provided token is recognized by the converter if it is already created.
+                // Otherwise checking if the converter predicts its address would be sufficient.
+                require(converter.getERC223OriginFor(_token)              == _token223);
+
+                // The main purpose of this checks is to prevent users from creating an incorrectly set pool
+                // for an existing token and therefore "banning" the creation of new (correct) pool with this token
+                // in the future.
+            }
             require(converter.predictWrapperAddress(_token223, false) == _token);
 
             uint256 _origin_code_size;
@@ -204,16 +222,20 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
             require(_origin_code_size > 0); // Origin MUST exist.
 
             (bool success, bytes memory data) = _token223.staticcall(abi.encodeWithSelector(0x5a3b7e42));
-            require(success && abi.decode(data,(uint32)) == uint32(223)); 
+
+            // The ERC-223 token MUST implement `standard()` funct.
+            // If it doesn't - then its not a valid ERC-223 token.
+            require(success && abi.decode(data,(uint32)) == uint32(223));
 
             return; // All checks passed for scenario 2.
         }
+
+        revert(); // Explicitly fail the transaction in any case of uncertainty.
     }
 
 
     // @inheritdoc IUniswapV3Factory
     function enableFeeAmount(uint24 fee, int24 tickSpacing) public override {
-        /*  COMMENTED FOR TESTING PURPOSES
         require(msg.sender == owner);
         require(fee < 1000000);
         // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
@@ -224,7 +246,6 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
         feeAmountTickSpacing[fee] = tickSpacing;
         emit FeeAmountEnabled(fee, tickSpacing);
-        */
     }
 }
 
