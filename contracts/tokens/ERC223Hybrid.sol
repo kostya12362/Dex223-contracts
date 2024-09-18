@@ -97,7 +97,7 @@ contract ERC223HybridToken is IERC223, ERC165 {
         return _totalSupply;
     }
 
-    function standard() public pure returns (string memory)        { return "223"; }
+    function standard() public pure returns (uint32)        { return 223; }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return
