@@ -92,7 +92,7 @@ IERC223Recipient
 
         _;
 
-        call_sender = address(0);
+        delete(call_sender);
     }
 
     constructor(address _factory, address _WETH9) PeripheryImmutableState(_factory, _WETH9) {}
@@ -116,8 +116,8 @@ IERC223Recipient
             }
 */
         }
-        call_sender = address(0);
-        token_sender = address(0);
+        delete(call_sender);
+        delete(token_sender);
         return 0x8943ec02;
     }
 
