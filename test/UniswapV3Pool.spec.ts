@@ -221,7 +221,7 @@ describe('Dex223Pool', () => {
       await expect(factory.createPool(tokenA_20, tokenB.target, tokenA_223.target, tokenB223, 3000n)).not.to.be.reverted;
     });
     
-    it('pool creation: ERC-20(exist - wrapper) & ERC-223(exist) - should pass', async () => {
+    it('pool creation: ERC-20(not exist - predict) & ERC-223(exist) - should pass', async () => {
       // 4. Существует ERC-223, не существует ERC-20 - должно работать.
       const token20Factory = await ethers.getContractFactory('TestERC20');
       const token223Factory = await ethers.getContractFactory('ERC223HybridToken');

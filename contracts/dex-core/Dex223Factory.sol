@@ -144,7 +144,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
 
         // In any scenario _token MUST NOT be a ERC-223 token.
-        (bool success, bytes memory data) = _token.staticcall(abi.encodeWithSelector(0x5a3b7e42)); // call `standard() returns uint32`
+        (bool success, bytes memory data) = _token.call(abi.encodeWithSelector(0x5a3b7e42)); // call `standard() returns uint32`
         // It is important to note that the call may be handled by the fallback function
         // of the token contract.
         // In this case it will succeed but the returned `data` will be empty.
@@ -175,11 +175,11 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
                 require(success && abi.decode(data,(uint32)) == uint32(223)); 
 
                 // Check if converter identifies it as a ERC-223 wrapper.
-                require(converter.isWrapper(_token223)); 
+//                require(converter.isWrapper(_token223)); 
 
                 // Check if converter identifies the ERC-223 wrapper
                 // as a wrapper for our exact ERC-20 _token.
-                require(converter.getERC20OriginFor(_token223) == _token); 
+                require((converter.getERC20OriginFor(_token223) == _token) || converter.predictWrapperAddress(_token223, false) == _token); 
 
                 return; // All checks passed for scenario 1.
             }
