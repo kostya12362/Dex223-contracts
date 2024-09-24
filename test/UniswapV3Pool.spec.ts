@@ -1696,10 +1696,10 @@ describe('Dex223Pool', () => {
       it('returns 0 if no fees', async () => {
         await pool.setFeeProtocol(6n, 6n)
         // @ts-ignore
-        const { amount0, amount1 } = await pool.collectProtocol.staticCall(wallet.address, MaxUint128, MaxUint128)
+        const { amount0, amount1 } = await pool.collectProtocol.staticCall(wallet.address, MaxUint128, MaxUint128, false, false)
         expect(amount0).to.be.eq(0n)
         expect(amount1).to.be.eq(0n)
-      })
+      });
 
       it('can collect fees', async () => {
         await pool.setFeeProtocol(6n, 6n)
@@ -1710,12 +1710,26 @@ describe('Dex223Pool', () => {
           poke: true,
         })
 
-        await expect(pool.collectProtocol(other.address, MaxUint128, MaxUint128))
+        await expect(pool.collectProtocol(other.address, MaxUint128, MaxUint128, false, false))
           .to.emit(token0, 'Transfer')
           .withArgs(pool.target.toString(), other.address, 83333333333332n)
-      })
+      });
+      
+      it('(erc223) can collect fees', async () => {
+        await pool.setFeeProtocol(6n, 6n)
 
-      it('fees collected can differ between token0 and token1', async () => {
+        await swapAndGetFeesOwed({
+          amount: expandTo18Decimals(1),
+          zeroForOne: true,
+          poke: true,
+        })
+
+        await expect(pool.collectProtocol(other.address, MaxUint128, MaxUint128, true, true))
+            .to.emit(token0_223, 'Transfer(address,address,uint256)')
+            .withArgs(pool.target.toString(), other.address, 83333333333332n)
+      });
+
+      it('(223-20) fees collected can differ between token0 and token1', async () => {
         await pool.setFeeProtocol(8n, 5n)
 
         await swapAndGetFeesOwed({
@@ -1729,8 +1743,9 @@ describe('Dex223Pool', () => {
           poke: false,
         })
 
-        await expect(pool.collectProtocol(other.address, MaxUint128, MaxUint128))
-          .to.emit(token0, 'Transfer')
+        await expect(pool.collectProtocol(other.address, MaxUint128, MaxUint128, true, false))
+          // .to.emit(token0, 'Transfer')
+            .to.emit(token0_223, 'Transfer(address,address,uint256)')
           // more token0 fees because it's 1/5th the swap fees
           .withArgs(pool.target.toString(), other.address, 62499999999999n)
           .to.emit(token1, 'Transfer')

@@ -554,22 +554,12 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
     function collectProtocol(
         address recipient,
         uint128 amount0Requested,
-        uint128 amount1Requested
+        uint128 amount1Requested,
+        bool token0_223,
+        bool token1_223
     ) external override lock onlyFactoryOwner  returns (uint128 amount0, uint128 amount1) {
-        amount0 = amount0Requested > protocolFees.token0 ? protocolFees.token0 : amount0Requested;
-        amount1 = amount1Requested > protocolFees.token1 ? protocolFees.token1 : amount1Requested;
-
-        if (amount0 > 0) {
-            if (amount0 == protocolFees.token0) amount0--; // ensure that the slot is not cleared, for gas savings
-            protocolFees.token0 -= amount0;
-            TransferHelper.safeTransfer(token0.erc20, recipient, amount0);
-        }
-        if (amount1 > 0) {
-            if (amount1 == protocolFees.token1) amount1--; // ensure that the slot is not cleared, for gas savings
-            protocolFees.token1 -= amount1;
-            TransferHelper.safeTransfer(token1.erc20, recipient, amount1);
-        }
-
-        emit CollectProtocol(msg.sender, recipient, amount0, amount1);
+        (bool success, bytes memory retdata) = pool_lib.delegatecall(abi.encodeWithSignature("collectProtocol(address,uint128,uint128,bool,bool)", recipient, amount0Requested, amount1Requested, token0_223, token1_223));
+        require(success);
+        return abi.decode(retdata, (uint128, uint128));
     }
 }

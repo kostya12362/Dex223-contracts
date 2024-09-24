@@ -101,7 +101,7 @@ contract Dex223PoolLib {
     }
 
 
-     event Mint(
+    event Mint(
         address sender,
         address indexed owner,
         int24 indexed tickLower,
@@ -111,7 +111,7 @@ contract Dex223PoolLib {
         uint256 amount1
     );
 
-      event Burn(
+    event Burn(
         address indexed owner,
         int24 indexed tickLower,
         int24 indexed tickUpper,
@@ -129,7 +129,9 @@ contract Dex223PoolLib {
         uint128 amount1
     );
 
-      event Swap(
+    event CollectProtocol(address indexed sender, address indexed recipient, uint128 amount0, uint128 amount1);
+
+    event Swap(
         address indexed sender,
         address indexed recipient,
         int256 amount0,
@@ -435,6 +437,34 @@ contract Dex223PoolLib {
         }
 
         emit Collect(msg.sender, recipient, tickLower, tickUpper, amount0, amount1);
+    }
+
+    function collectProtocol(
+        address recipient,
+        uint128 amount0Requested,
+        uint128 amount1Requested,
+        bool token0_223,
+        bool token1_223
+    ) external returns (uint128 amount0, uint128 amount1) {
+        amount0 = amount0Requested > protocolFees.token0 ? protocolFees.token0 : amount0Requested;
+        amount1 = amount1Requested > protocolFees.token1 ? protocolFees.token1 : amount1Requested;
+
+        if (amount0 > 0) {
+            if (amount0 == protocolFees.token0) amount0--; // ensure that the slot is not cleared, for gas savings
+            protocolFees.token0 -= amount0;
+            //TransferHelper.safeTransfer(token0.erc20, recipient, amount0);
+            if (token0_223) optimisticDelivery(token0.erc223, recipient, amount0);
+            else optimisticDelivery(token0.erc20, recipient, amount0);
+        }
+        if (amount1 > 0) {
+            if (amount1 == protocolFees.token1) amount1--; // ensure that the slot is not cleared, for gas savings
+            protocolFees.token1 -= amount1;
+            //TransferHelper.safeTransfer(token1.erc20, recipient, amount1);
+            if (token1_223) optimisticDelivery(token1.erc223, recipient, amount1);
+            else optimisticDelivery(token1.erc20, recipient, amount1);
+        }
+
+        emit CollectProtocol(msg.sender, recipient, amount0, amount1);
     }
 
     /// @dev noDelegateCall is applied indirectly via _modifyPosition
