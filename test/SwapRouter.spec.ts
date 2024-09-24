@@ -29,6 +29,7 @@ import TEST_POOL from "../artifacts/contracts/test/MockTimeDex223Pool.sol/MockTi
 
 use(jestSnapshotPlugin());
 
+
 describe('SwapRouter', function () {
   this.timeout(40000)
   let wallet: Wallet
@@ -68,6 +69,46 @@ describe('SwapRouter', function () {
       nft,
       converter
     }
+  }
+
+  async function swap223(
+      pool: string,
+      inputToken: BaseContract,
+      [amountIn, amountOut]: [bigint, bigint],
+      to: Wallet | string,
+      sqrtPriceLimitX96?: bigint,
+      amountOutMin: bigint = 0n,
+      deadline: bigint = 1601916400n,
+      unwrapETH: boolean = false
+  ): Promise<ContractTransactionResponse> {
+    // const exactInput = amountOut === 0n
+
+    const toAddress = typeof to === 'string' ? to : to.address;
+    if (typeof sqrtPriceLimitX96 === 'undefined') {
+      if (inputToken === (tokens[3] as BaseContract)) {
+        sqrtPriceLimitX96 = MIN_SQRT_RATIO + 1n
+      } else {
+        sqrtPriceLimitX96 = MAX_SQRT_RATIO - (1n)
+      }
+    }
+    // const values = [pool.target.toString(), exactInput ? amountIn : amountOut, toAddress, sqrtPriceLimitX96];
+    const encoded  = ethers.AbiCoder.defaultAbiCoder().encode(
+        ['address'],
+        [toAddress]
+    )
+    const swapValues =
+        [toAddress, inputToken.target == tokens[3].target, amountIn, amountOutMin, sqrtPriceLimitX96, true, encoded, deadline, unwrapETH];
+
+    const poolContract = new Contract(
+        pool,
+        TEST_POOL.abi,
+        ethers.provider
+    ) as BaseContract as MockTimeDex223Pool;
+
+    // @ts-ignore
+    const data = poolContract.interface.encodeFunctionData('swapExactInput', swapValues);
+    const bytes = ethers.getBytes(data)
+    return await (inputToken as ERC223HybridToken).connect(trader)['transfer(address,uint256,bytes)'](pool, amountIn /*ethers.MaxUint256 / 4n - 1n */, bytes);
   }
 
   let factory: Dex223Factory
@@ -138,6 +179,7 @@ describe('SwapRouter', function () {
         [tokenAddressA0, tokenAddressB0, tokenAddressA1, tokenAddressB1] = [tokenAddressB0, tokenAddressA0, tokenAddressB1, tokenAddressA1]
       }
 
+      // console.log('{gasLimit: 30_000_000}');
       await nft.createAndInitializePoolIfNecessary(
         tokenAddressA0,
         tokenAddressB0,
@@ -145,7 +187,9 @@ describe('SwapRouter', function () {
         tokenAddressB1,
         FeeAmount.MEDIUM,
         encodePriceSqrt(1n, 1n)
-      )
+          // , {gasLimit: 30_000_000}
+      );
+      // console.log('pool created');
 
       const liquidityParams = {
         token0: tokenAddressA0,
@@ -177,6 +221,8 @@ describe('SwapRouter', function () {
     }
 
     beforeEach('create 0-1 and 1-2 pools', async () => {
+      // NOTE: uncomment to get new POOL_INIT_CODE_HASH
+      computePoolAddress(factory.target.toString(), [tokens[0].target.toString(), tokens[1].target.toString()], FeeAmount.MEDIUM);
       await createPool(tokens[0].target.toString(), tokens[1].target.toString(), tokens[3].target.toString(), tokens[4].target.toString());
       await createPool(tokens[1].target.toString(), tokens[2].target.toString(), tokens[4].target.toString(), tokens[5].target.toString());
       // NOTE pool with not existed 223 token
@@ -613,7 +659,40 @@ describe('SwapRouter', function () {
             expect(traderAfter.token0).to.be.eq(traderBefore.token0 - 3n)
             expect(poolAfter.weth9).to.be.eq(poolBefore.weth9 - 1n)
             expect(poolAfter.token0).to.be.eq(poolBefore.token0 + 3n)
-          })
+          });
+          
+          it('(223) 0 -> WETH9', async () => {
+            const pool = await factory.getPool(tokens[0].target.toString(), weth9.target.toString(), FeeAmount.MEDIUM)
+
+            // get balances before
+            const poolBefore = await getBalances(pool)
+            const traderBefore = await getBalances(trader.address)
+
+            // await exactInput223(
+            //     [tokens[0].target.toString(), weth9.target.toString()],
+            //     tokens[3].target.toString(),
+            //     undefined,
+            //     undefined,
+            //    
+            // );
+
+            const deadline = Math.floor(new Date().getTime() / 1000 + 100);
+            await expect(swap223(pool, tokens[3], [3n, 1n], trader.address, undefined, undefined, BigInt(deadline), true))
+              .to.emit(weth9, 'Withdrawal')
+              .withArgs(pool, 1);
+            
+            // await expect(exactInput([tokens[0].target.toString(), weth9.target.toString()]))
+            //   .to.emit(weth9, 'Withdrawal')
+            //   .withArgs(router.target.toString(), 1)
+
+            // get balances after
+            const poolAfter = await getBalances(pool)
+            const traderAfter = await getBalances(trader.address)
+
+            expect(traderAfter.token0).to.be.eq(traderBefore.token0 - 3n)
+            expect(poolAfter.weth9).to.be.eq(poolBefore.weth9 - 1n)
+            expect(poolAfter.token0).to.be.eq(poolBefore.token0 + 3n)
+          });
 
           it('0 -> 1 -> WETH9', async () => {
             // get balances before
@@ -748,43 +827,7 @@ describe('SwapRouter', function () {
       });
 
       it('(223-20) 0 -> 1 direct pool swap', async () => {
-        async function swap223(
-            inputToken: BaseContract,
-            [amountIn, amountOut]: [bigint, bigint],
-            to: Wallet | string,
-            sqrtPriceLimitX96?: bigint,
-            amountOutMin: bigint = 0n,
-            deadline: bigint = 1601916400n
-        ): Promise<ContractTransactionResponse> {
-          // const exactInput = amountOut === 0n
-
-          const toAddress = typeof to === 'string' ? to : to.address;
-          if (typeof sqrtPriceLimitX96 === 'undefined') {
-            if (inputToken === (tokens[3] as BaseContract)) {
-              sqrtPriceLimitX96 = MIN_SQRT_RATIO + 1n
-            } else {
-              sqrtPriceLimitX96 = MAX_SQRT_RATIO - (1n)
-            }
-          }
-          // const values = [pool.target.toString(), exactInput ? amountIn : amountOut, toAddress, sqrtPriceLimitX96];
-          const encoded  = ethers.AbiCoder.defaultAbiCoder().encode(
-              ['address'],
-              [toAddress]
-          )
-          const swapValues =
-              [toAddress, inputToken.target == tokens[3].target, amountIn, amountOutMin, sqrtPriceLimitX96, true, encoded, deadline];
-
-          const poolContract = new Contract(
-              pool,
-              TEST_POOL.abi,
-              ethers.provider
-          ) as BaseContract as MockTimeDex223Pool;
-
-          // @ts-ignore
-          const data = poolContract.interface.encodeFunctionData('swapExactInput', swapValues);
-          const bytes = ethers.getBytes(data)
-          return await (inputToken as ERC223HybridToken).connect(trader)['transfer(address,uint256,bytes)'](pool, amountIn /*ethers.MaxUint256 / 4n - 1n */, bytes);
-        }
+        
 
         const pool = await factory.getPool(tokens[0].target.toString(), tokens[1].target.toString(), FeeAmount.MEDIUM);
 
@@ -796,7 +839,7 @@ describe('SwapRouter', function () {
         // console.log(traderBefore);
 
         const deadline = Math.floor(new Date().getTime() / 1000 + 100);
-        await swap223(tokens[3], [123456n, 0n], trader.address, undefined, undefined, BigInt(deadline));
+        await swap223(pool, tokens[3], [123456n, 0n], trader.address, undefined, undefined, BigInt(deadline));
 
         // get balances after
         const poolAfter = await getBalances(pool);

@@ -29,6 +29,8 @@ import './interfaces/IDex223Factory.sol';
 import '../interfaces/IERC20Minimal.sol';
 // import './interfaces/callback/IUniswapV3MintCallback.sol';
 import './interfaces/callback/IUniswapV3SwapCallback.sol';
+
+import '../tokens/interfaces/IWETH9.sol';
 /*
 import './interfaces/callback/IUniswapV3FlashCallback.sol';
 */
@@ -467,6 +469,20 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         }
     }
 
+    receive() external payable {
+//        require(msg.sender == WETH9, 'Not WETH9');
+    }
+    
+    function unwrapWETH9(address recipient, address WETH9, uint256 amountOut) public payable { 
+        uint256 balanceWETH9 = IWETH9(WETH9).balanceOf(address(this));
+        require(balanceWETH9 >= amountOut, 'Insufficient WETH9');
+
+        if (balanceWETH9 > 0) {
+            IWETH9(WETH9).withdraw(amountOut);
+            TransferHelper.safeTransferETH(recipient, amountOut);
+        }
+    }
+
     /// @dev to make direct swap via pool with deadline and slippage
     function swapExactInput(
         address recipient,
@@ -476,9 +492,13 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         uint160 sqrtPriceLimitX96,
         bool prefer223,
         bytes memory data,
-        uint256 deadline
+        uint256 deadline,
+        bool unwrapETH
     ) external virtual checkDeadline(deadline) returns (uint256 amountOut) {
-        (bool success, bytes memory retdata) = pool_lib.delegatecall(abi.encodeWithSignature("swap(address,bool,int256,uint160,bool,bytes)", recipient, zeroForOne, amountSpecified, sqrtPriceLimitX96, prefer223, data));
+        (bool success, bytes memory retdata) = pool_lib.delegatecall(
+            abi.encodeWithSignature("swap(address,bool,int256,uint160,bool,bytes)",
+                unwrapETH ? address(this) : recipient, zeroForOne, amountSpecified, sqrtPriceLimitX96,
+                unwrapETH ? false : prefer223, data));
 
         int256 amount0;
         int256 amount1;
@@ -488,6 +508,10 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
 
         amountOut = uint256(-(zeroForOne ? amount1 : amount0));
 
+        if (unwrapETH) {
+            unwrapWETH9(recipient, zeroForOne ? token1.erc20 : token0.erc20, amountOut);
+        }
+        
         require(amountOut >= amountOutMinimum, 'Too little received');
     }
 

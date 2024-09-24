@@ -71,7 +71,7 @@ interface IDex223Factory {
         address tokenA_erc223,
         address tokenB_erc223,
         uint24 fee
-    ) external returns (address pool);
+    ) external returns (address payable pool);
 
     /// @notice Updates the owner of the factory
     /// @dev Must be called by the current owner

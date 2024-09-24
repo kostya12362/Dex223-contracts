@@ -53,9 +53,13 @@ contract MockTimeDex223Pool is Dex223Pool {
         uint160 sqrtPriceLimitX96,
         bool prefer223,
         bytes memory data,
-        uint256 deadline
+        uint256 deadline,
+        bool unwrapETH
     ) external override checkDeadline(deadline) returns (uint256 amountOut) {
-        (bool success, bytes memory retdata) = pool_lib.delegatecall(abi.encodeWithSignature("swap(address,bool,int256,uint160,bool,bytes)", recipient, zeroForOne, amountSpecified, sqrtPriceLimitX96, prefer223, data));
+        (bool success, bytes memory retdata) = pool_lib.delegatecall(
+            abi.encodeWithSignature("swap(address,bool,int256,uint160,bool,bytes)",
+                unwrapETH ? address(this) : recipient, zeroForOne, amountSpecified, sqrtPriceLimitX96,
+                unwrapETH ? false : prefer223, data));
 
         if (success) {
             int256 amount0;
@@ -63,6 +67,10 @@ contract MockTimeDex223Pool is Dex223Pool {
             ( amount0,  amount1) = abi.decode(retdata, (int256, int256));
             amountOut = uint256(-(zeroForOne ? amount1 : amount0));
 
+            if (unwrapETH) {
+                unwrapWETH9(recipient, zeroForOne ? token1.erc20 : token0.erc20, amountOutMinimum);
+            }
+            
             require(amountOut >= amountOutMinimum, 'Too little received');
         } else {
             if (retdata.length == 0) revert();
