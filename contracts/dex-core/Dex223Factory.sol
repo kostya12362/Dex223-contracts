@@ -66,7 +66,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         address tokenA_erc223,
         address tokenB_erc223,
         uint24 fee
-    ) external override noDelegateCall returns (address pool) {
+    ) external override noDelegateCall returns (address payable pool) {
 
         require(tokenA_erc20 != tokenB_erc20);
         require(tokenA_erc20 != address(0));
@@ -95,7 +95,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         int24 tickSpacing = feeAmountTickSpacing[fee];
         require(tickSpacing != 0);
         require(getPool[tokenA_erc20][tokenB_erc20][fee] == address(0));
-        pool = deploy(address(this), tokenA_erc20, tokenB_erc20, fee, tickSpacing);
+        pool = payable(deploy(address(this), tokenA_erc20, tokenB_erc20, fee, tickSpacing));
         Dex223Pool(pool).set(tokenA_erc223, tokenB_erc223, pool_lib,  address(converter));
         getPool[tokenA_erc20][tokenB_erc20][fee] = pool;
         // populate mapping in ALL directions.

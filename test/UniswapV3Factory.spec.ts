@@ -28,8 +28,21 @@ describe('Dex223Factory', () => {
   let factory: Dex223Factory
   let poolBytecode: string
   async function fixture() {
+    const libraryFactory = await ethers.getContractFactory('MockTimeDex223PoolLib')
+    const library = (await libraryFactory.deploy());
+
+    const converterFactory = await ethers.getContractFactory('TokenStandardConverter')
+    const converter = (await converterFactory.deploy());
+
     const factoryFactory = await ethers.getContractFactory('Dex223Factory')
-    return (await factoryFactory.deploy()) as Dex223Factory
+    const factory =  (await factoryFactory.deploy()) as Dex223Factory;
+
+    TEST_ADDRESSES[2] = await converter.predictWrapperAddress(TEST_ADDRESSES[0], true);
+    TEST_ADDRESSES[3] = await converter.predictWrapperAddress(TEST_ADDRESSES[1], true);
+
+    await factory.set(library.target, converter.target);
+    
+    return factory;
   }
 
   // let loadFixture: ReturnType<typeof createFixtureLoader>

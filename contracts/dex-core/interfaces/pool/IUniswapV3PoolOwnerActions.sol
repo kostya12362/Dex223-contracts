@@ -18,6 +18,8 @@ interface IUniswapV3PoolOwnerActions {
     function collectProtocol(
         address recipient,
         uint128 amount0Requested,
-        uint128 amount1Requested
+        uint128 amount1Requested,
+        bool token0_223,
+        bool token1_223
     ) external returns (uint128 amount0, uint128 amount1);
 }

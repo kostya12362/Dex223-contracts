@@ -182,7 +182,8 @@ export function createPoolFunctions({
     to: Wallet | string,
     sqrtPriceLimitX96?: bigint,
     amountOutMin: bigint = 0n,
-    deadline: bigint = 1601916400n
+    deadline: bigint = 1601916400n,
+    unwrapETH: boolean = false
   ): Promise<ContractTransactionResponse> {
     // const exactInput = amountOut === 0n
 
@@ -200,7 +201,7 @@ export function createPoolFunctions({
         [toAddress]
     )
     const swapValues =
-        [toAddress, inputToken.target == token0_223.target, amountIn, amountOutMin, sqrtPriceLimitX96, true, encoded, deadline];
+        [toAddress, inputToken.target == token0_223.target, amountIn, amountOutMin, sqrtPriceLimitX96, true, encoded, deadline, unwrapETH];
 
     // @ts-ignore
     const data = pool.interface.encodeFunctionData('swapExactInput', swapValues);
