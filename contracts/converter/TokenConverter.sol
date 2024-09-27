@@ -452,15 +452,6 @@ contract TokenStandardConverter is IERC223Recipient
         return address(_newERC20Wrapper);
     }
 
-    function depositERC20(address _token, uint256 _amount) public returns (bool)
-    {
-        if(erc223Origins[_token] != address(0))
-        {
-            return unwrapERC20toERC223(_token, _amount);
-        }
-        else return wrapERC20toERC223(_token, _amount);
-    }
-
     function wrapERC20toERC223(address _ERC20token, uint256 _amount) public returns (bool)
     {
         // If there is no active wrapper for a token that user wants to wrap
