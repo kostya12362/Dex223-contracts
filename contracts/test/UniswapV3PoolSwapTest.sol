@@ -35,7 +35,7 @@ contract UniswapV3PoolSwapTest is IUniswapV3SwapCallback {
             zeroForOne,
             amountSpecified,
             sqrtPriceLimitX96,
-            false,  // TODO add same calls with bool prefer223 = true
+            false,  
             abi.encode(msg.sender)
         );
 

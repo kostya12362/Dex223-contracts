@@ -52,6 +52,13 @@
     "hardhat:test:update": "UPDATE_SNAPSHOT=1 hardhat test",
     "hardhat:test:coverage": "hardhat coverage",
     "hardhat:test:gas": "REPORT_GAS=true COINMARKETCAP_API_KEY=$(security find-generic-password -w -s 'Coinmarketcap API Key') hardhat test",
+    "hardhat:test:router": "hardhat test ./test/SwapRouter.spec.ts ./test/UniswapV3Router.spec.ts",
+    "hardhat:test:routergas": "hardhat test ./test/SwapRouter.gas.spec.ts",
+    "hardhat:test:factory": "hardhat test ./test/UniswapV3Factory.spec.ts",
+    "hardhat:test:pool": "hardhat test ./test/UniswapV3Pool.arbitrage.spec.ts ./test/UniswapV3Pool.gas.spec.ts ./test/UniswapV3Pool.spec.ts",
+    "hardhat:test:poolswaps": "hardhat test ./test/UniswapV3Pool.swaps.spec.ts",
+    "hardhat:test:autolist": "hardhat test ./test/ZAutoListing.spec.ts",
+    "hardhat:test:nfpm": "hardhat test ./test/LiquidityAmounts.spec.ts ./test/PositionValue.spec.ts ./test/NonfungiblePositionManager.spec.ts",
     "lint:contracts": "yarn solhint contracts/*.sol",
     "lint:contracts:format": "yarn prettier --write contracts/*.sol",
     "slither": "slither ."

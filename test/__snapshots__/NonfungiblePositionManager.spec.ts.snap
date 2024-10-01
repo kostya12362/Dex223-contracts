@@ -1,5 +1,15 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`#fees when price is above the position range gas 1`] = `48206`;
+
+exports[`#fees when price is below the position range gas 1`] = `48174`;
+
+exports[`#fees when price is within the position range gas 1`] = `53848`;
+
+exports[`#principal gas 1`] = `23190`;
+
+exports[`#total gas 1`] = `60598`;
+
 exports[`NonfungiblePositionManager #burn gas 1`] = `66076`;
 
 exports[`NonfungiblePositionManager #collect gas transfers both 1`] = `133375`;
@@ -8,7 +18,7 @@ exports[`NonfungiblePositionManager #collect gas transfers token0 only 1`] = `12
 
 exports[`NonfungiblePositionManager #collect gas transfers token1 only 1`] = `124351`;
 
-exports[`NonfungiblePositionManager #createAndInitializePoolIfNecessary gas 1`] = `3684985`;
+exports[`NonfungiblePositionManager #createAndInitializePoolIfNecessary gas 1`] = `3684939`;
 
 exports[`NonfungiblePositionManager #decreaseLiquidity gas complete decrease 1`] = `154125`;
 

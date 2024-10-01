@@ -26,7 +26,7 @@ contract TestUniswapV3SwapPay is IUniswapV3SwapCallback {
             zeroForOne,
             amountSpecified,
             sqrtPriceX96,
-            false, // TODO add same calls with bool prefer223 = true
+            false, 
             abi.encode(msg.sender, pay0, pay1)
         );
     }

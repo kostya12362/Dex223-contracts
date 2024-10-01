@@ -14,8 +14,6 @@ contract TestUniswapV3ReentrantCallee is IUniswapV3SwapCallback {
         IUniswapV3Pool(pool).swap(address(0), false, 1, TickMath.MAX_SQRT_RATIO - 1, false, new bytes(0));
     }
 
-    // TODO add same calls with bool prefer223 = true
-
     function uniswapV3SwapCallback(
         int256,
         int256,
@@ -35,7 +33,6 @@ contract TestUniswapV3ReentrantCallee is IUniswapV3SwapCallback {
         }
 
         // try to reenter collect
-        // TODO add versions with (true, false), (false, true), (true, true)
         try IUniswapV3Pool(msg.sender).collect(address(0), 0, 0, 0, 0, false, false) {} catch Error(string memory reason) {
 //            require(keccak256(abi.encode(reason)) == keccak256(abi.encode(expectedReason)));
         }

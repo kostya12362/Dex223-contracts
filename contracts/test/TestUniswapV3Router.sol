@@ -30,7 +30,7 @@ contract TestUniswapV3Router is IUniswapV3SwapCallback {
             false,
             -amount0Out.toInt256(),
             TickMath.MAX_SQRT_RATIO - 1,
-            false,  // TODO add same calls with bool prefer223 = true
+            false,  
             abi.encode(pools, msg.sender)
         );
     }
@@ -49,7 +49,7 @@ contract TestUniswapV3Router is IUniswapV3SwapCallback {
             true,
             -amount1Out.toInt256(),
             TickMath.MIN_SQRT_RATIO + 1,
-            false,  // TODO add same calls with bool prefer223 = true
+            false,  
             abi.encode(pools, msg.sender)
         );
     }
@@ -82,7 +82,7 @@ contract TestUniswapV3Router is IUniswapV3SwapCallback {
                 zeroForOne,
                 -amountToBePaid,
                 zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1,
-                false,  // TODO add same calls with bool prefer223 = true
+                false,  
                 encoded
             );
         } else {
