@@ -33,3 +33,74 @@ https://sepolia.etherscan.io/address/0x22cD7407eB4cE475AeC9769fDF229b1046C891C0
 
 12. Quoter:  
 https://sepolia.etherscan.io/address/0x4F55aF4162FBA4505D459d3B3Fd1926391F18349
+
+
+## Helpers
+
+1. Run local virtual node:
+```bash
+yarn run hardhat:node
+```
+
+2. Compile contracts:
+```bash
+yarn run hardhat:compile
+```
+or use `force` to re-compile all contratcs
+```bash
+yarn run hardhat:compile:force
+```
+
+3. Prepare JSON files for contract verification.
+Search for output files in `./artifacts/solidity-json` folder
+```bash
+yarn run hardhat:verify
+```
+
+
+## Contracts tests
+
+1. Run ALL tests:
+```bash
+yarn run hardhat:test
+```
+
+2. Update values for GAS tests:
+```bash
+yarn run hardhat:test:update
+```
+
+3. Run only SwapRouter tests:
+```bash
+yarn run hardhat:test:router
+```
+
+4. Run only SwapRouter GAS tests:
+```bash
+yarn run hardhat:test:routergas
+```
+
+5. Run only Factory tests:
+```bash
+yarn run hardhat:test:factory
+```
+
+6. Run only Pool tests:
+```bash
+yarn run hardhat:test:pool
+```
+
+7. Run only Pool Swaps tests:
+```bash
+yarn run hardhat:test:poolswaps
+```
+
+8. Run only NonfungiblePositionManager tests:
+```bash
+yarn run hardhat:test:nfpm
+```
+
+9. Run only AutoListing tests:
+```bash
+yarn run hardhat:test:autolist
+```

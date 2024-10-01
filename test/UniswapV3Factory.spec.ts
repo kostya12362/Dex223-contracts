@@ -12,7 +12,6 @@ use(jestSnapshotPlugin());
 
 import { FeeAmount, getCreate2Address, TICK_SPACINGS } from './shared/utilities'
 
-// TODO get addresses from Converter
 const TEST_ADDRESSES: [string, string, string, string] = [
   '0x1000000000000000000000000000000000000000',
   '0x2000000000000000000000000000000000000000',
