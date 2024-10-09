@@ -246,7 +246,7 @@ contract ERC20WrapperToken is IERC20, ERC165, ERC20Rescue
     function balanceOf(address _owner) public view override returns (uint256) { return balances[_owner]; }
 
     function name()        public view  returns (string memory) { return IERC20Metadata(wrapper_for).name(); }
-    function symbol()      public view  returns (string memory) { return string.concat(IERC223(wrapper_for).name(), "20"); }
+    function symbol()      public view  returns (string memory) { return string.concat(IERC223(wrapper_for).symbol(), "20"); }
     function decimals()    public view  returns (uint8)         { return IERC20Metadata(wrapper_for).decimals(); }
     function totalSupply() public view override returns (uint256)       { return _totalSupply; }
     function origin()      public view returns (address)                { return wrapper_for; }
