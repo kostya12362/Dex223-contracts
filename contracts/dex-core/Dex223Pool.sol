@@ -586,4 +586,11 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         require(success);
         return abi.decode(retdata, (uint128, uint128));
     }
+
+    function withdrawEther(address payable _to, uint256 _amount) external onlyFactoryOwner {
+        require(_amount <= address(this).balance, "Insufficient Ether balance");
+
+        // Transfer the requested amount of Ether
+        _to.transfer(_amount);
+    }
 }
