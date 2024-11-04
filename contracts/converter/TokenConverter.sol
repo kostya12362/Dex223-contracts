@@ -1,14 +1,78 @@
-// SPDX-License-Identifier: GPL-3.0
-
 pragma solidity =0.8.19;
 
-import "../tokens/interfaces/IERC20.sol";
-import "../tokens/interfaces/IERC20Metadata.sol";
-import "../tokens/interfaces/IERC223.sol";
-import "../tokens/interfaces/IERC223Recipient.sol";
-import "../libraries/Address.sol";
-import "../introspection/ERC165.sol";
+library Address {
+    function isContract(address account) internal view returns (bool) {
+        // This method relies on extcodesize, which returns 0 for contracts in
+        // construction, since the code is only stored at the end of the
+        // constructor execution.
 
+        uint256 size;
+        // solhint-disable-next-line no-inline-assembly
+        assembly { size := extcodesize(account) }
+        return size > 0;
+    }
+}
+
+interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
+interface IERC20Metadata is IERC20 {
+    /// @return The name of the token
+    function name() external view returns (string memory);
+
+    /// @return The symbol of the token
+    function symbol() external view returns (string memory);
+
+    /// @return The number of decimal places the token has
+    function decimals() external view returns (uint8);
+}
+
+abstract contract IERC223Recipient {
+    function tokenReceived(address _from, uint _value, bytes memory _data) public virtual returns (bytes4)
+    {
+        return 0x8943ec02;
+    }
+}
+
+abstract contract ERC165 {
+    /*
+     * bytes4(keccak256('supportsInterface(bytes4)')) == 0x01ffc9a7
+     */
+    bytes4 private constant _INTERFACE_ID_ERC165 = 0x01ffc9a7;
+    mapping(bytes4 => bool) private _supportedInterfaces;
+
+    constructor () {
+        // Derived contracts need only register support for their own interfaces,
+        // we register support for ERC165 itself here
+        _registerInterface(_INTERFACE_ID_ERC165);
+    }
+    function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
+        return _supportedInterfaces[interfaceId];
+    }
+    function _registerInterface(bytes4 interfaceId) internal virtual {
+        require(interfaceId != 0xffffffff, "ERC165: invalid interface id");
+        _supportedInterfaces[interfaceId] = true;
+    }
+}
+
+abstract contract IERC223 {
+    function name()        public view virtual returns (string memory);
+    function symbol()      public view virtual returns (string memory);
+    function decimals()    public view virtual returns (uint8);
+    function totalSupply() public view virtual returns (uint256);
+    function balanceOf(address who) public virtual view returns (uint);
+    function transfer(address to, uint value) public virtual returns (bool success);
+    function transfer(address to, uint value, bytes calldata data) public payable virtual returns (bool success);
+    event Transfer(address indexed from, address indexed to, uint value, bytes data);
+}
 
 interface standardERC20
 {
@@ -23,7 +87,7 @@ interface standardERC20
 }
 
 /**
- * @dev Interface of the ERC20 standard as defined in the EIP.
+ * @dev Interface of the ERC20 standard.
  */
 interface IERC223WrapperToken {
     function name()     external view returns (string memory);
@@ -64,20 +128,20 @@ interface IERC20WrapperToken {
 
 contract ERC20Rescue
 {
-    // ERC-20 tokens can get stuck on a contracts balance due to lack of error handling.
+    // ERC20 tokens can get stuck on a contracts balance due to lack of error handling.
     //
-    // The author of the ERC-7417 can extract ERC-20 tokens if they are mistakenly sent
+    // The author of the ERC7417 can extract ERC20 tokens if they are mistakenly sent
     // to the wrapper-contracts balance.
     // Contact dexaran@ethereumclassic.org
     address public extractor = 0x01000B5fE61411C466b70631d7fF070187179Bbf;
-
+    
     function safeTransfer(address token, address to, uint value) internal {
         // bytes4(keccak256(bytes('transfer(address,uint256)')));
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FAILED');
     }
 
-    function rescueERC20(address _token, uint256 _amount) external
+    function rescueERC20(address _token, uint256 _amount) external 
     {
         safeTransfer(_token, extractor, _amount);
     }
@@ -121,7 +185,7 @@ contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
     }
 
     /**
-     * @dev Standard ERC-223 transfer function.
+     * @dev Standard ERC223 transfer function.
      *      Calls _to if it is a contract. Does not transfer tokens to contracts
      *      which do not explicitly declare the tokenReceived function.
      * @param _to    - transfer recipient. Can be contract or EOA.
@@ -132,19 +196,23 @@ contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
     {
         balances[msg.sender] = balances[msg.sender] - _value;
         balances[_to] = balances[_to] + _value;
+        if (msg.value > 0) 
+        {
+            (bool sent, bytes memory data) = _to.call{value: msg.value}("");
+            require(sent);
+        }
         if(Address.isContract(_to)) {
             IERC223Recipient(_to).tokenReceived(msg.sender, _value, _data);
         }
-        if (msg.value > 0) payable(_to).transfer(msg.value);
         emit Transfer(msg.sender, _to, _value, _data);
-        emit Transfer(msg.sender, _to, _value); // Old ERC-20 compatible event. Added for backwards compatibility reasons.
+        emit Transfer(msg.sender, _to, _value); // Old ERC20 compatible event. Added for backwards compatibility reasons.
 
         return true;
     }
 
     /**
-     * @dev Standard ERC-223 transfer function without _data parameter. It is supported for
-     *      backwards compatibility with ERC-20 services.
+     * @dev Standard ERC223 transfer function without _data parameter. It is supported for 
+     *      backwards compatibility with ERC20 services.
      *      Calls _to if it is a contract. Does not transfer tokens to contracts
      *      which do not explicitly declare the tokenReceived function.
      * @param _to    - transfer recipient. Can be contract or EOA.
@@ -159,7 +227,7 @@ contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
             IERC223Recipient(_to).tokenReceived(msg.sender, _value, _empty);
         }
         emit Transfer(msg.sender, _to, _value, _empty);
-        emit Transfer(msg.sender, _to, _value); // Old ERC-20 compatible event. Added for backwards compatibility reasons.
+        emit Transfer(msg.sender, _to, _value); // Old ERC20 compatible event. Added for backwards compatibility reasons.
 
         return true;
     }
@@ -195,16 +263,14 @@ contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
         _totalSupply -= _quantity;
     }
 
-    // ERC-20 functions for backwards compatibility.
+    // ERC20 functions for backwards compatibility.
 
     function allowance(address owner, address spender) public view virtual returns (uint256) {
         return allowances[owner][spender];
     }
 
     function approve(address _spender, uint _value) public returns (bool) {
-
-        // Safety checks.
-        require(_spender != address(0), "ERC-223: Spender error.");
+        require(_spender != address(0), "ERC223: Spender error.");
 
         allowances[msg.sender][_spender] = _value;
         emit Approval(msg.sender, _spender, _value);
@@ -214,7 +280,7 @@ contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
 
     function transferFrom(address _from, address _to, uint _value) public returns (bool) {
 
-        require(allowances[_from][msg.sender] >= _value, "ERC-223: Insufficient allowance.");
+        require(allowances[_from][msg.sender] >= _value, "ERC223: Insufficient allowance.");
 
         balances[_from] -= _value;
         allowances[_from][msg.sender] -= _value;
@@ -288,7 +354,7 @@ contract ERC20WrapperToken is IERC20, ERC165, ERC20Rescue
 
         // Safety checks.
 
-        require(_spender != address(0), "ERC-20: Spender error.");
+        require(_spender != address(0), "ERC20: Spender error.");
 
         allowances[msg.sender][_spender] = _value;
         emit Approval(msg.sender, _spender, _value);
@@ -298,7 +364,7 @@ contract ERC20WrapperToken is IERC20, ERC165, ERC20Rescue
 
     function transferFrom(address _from, address _to, uint _value) public returns (bool) {
 
-        require(allowances[_from][msg.sender] >= _value, "ERC-20: Insufficient allowance.");
+        require(allowances[_from][msg.sender] >= _value, "ERC20: Insufficient allowance.");
 
         balances[_from] -= _value;
         allowances[_from][msg.sender] -= _value;
@@ -315,7 +381,7 @@ contract TokenStandardConverter is IERC223Recipient
     event ERC223WrapperCreated(address indexed _token, address indexed _ERC223Wrapper);
     event ERC20WrapperCreated(address indexed _token, address indexed _ERC20Wrapper);
 
-    mapping (address => ERC223WrapperToken) public erc223Wrappers; // A list of token wrappers. First one is ERC-20 origin, second one is ERC-223 version.
+    mapping (address => ERC223WrapperToken) public erc223Wrappers; // A list of token wrappers. First one is ERC20 origin, second one is ERC223 version.
     mapping (address => ERC20WrapperToken)  public erc20Wrappers;
 
     mapping (address => address)            public erc223Origins;
@@ -343,20 +409,20 @@ contract TokenStandardConverter is IERC223Recipient
     }
 
     function predictWrapperAddress(address _token,
-                                   bool    _isERC20 // Is the provided _token a ERC-20 or not?
-                                                    // If it is set as ERC-20 then we will predict the address of a
-                                                    // ERC-223 wrapper for that token.
-                                                    // Otherwise we will predict ERC-20 wrapper address.
+                                   bool    _isERC20 // Is the provided _token a ERC20 or not?
+                                                    // If it is set as ERC20 then we will predict the address of a 
+                                                    // ERC223 wrapper for that token.
+                                                    // Otherwise we will predict ERC20 wrapper address.
                                   ) view external returns (address)
     {
         bytes memory _bytecode;
         if(_isERC20)
         {
-            _bytecode= type(ERC223WrapperToken).creationCode;
+            _bytecode = type(ERC223WrapperToken).creationCode;
         }
         else
         {
-            _bytecode= type(ERC20WrapperToken).creationCode;
+            _bytecode = type(ERC20WrapperToken).creationCode;
         }
 
         bytes32 hash = keccak256(
@@ -372,8 +438,8 @@ contract TokenStandardConverter is IERC223Recipient
     {
         require(erc223Origins[msg.sender] == address(0), "Error: creating wrapper for a wrapper token.");
         // There are two possible cases:
-        // 1. A user deposited ERC-223 origin token to convert it to ERC-20 wrapper
-        // 2. A user deposited ERC-223 wrapper token to unwrap it to ERC-20 origin.
+        // 1. A user deposited ERC223 origin token to convert it to ERC20 wrapper
+        // 2. A user deposited ERC223 wrapper token to unwrap it to ERC20 origin.
 
         if(erc20Origins[msg.sender] != address(0))
         {
@@ -389,8 +455,8 @@ contract TokenStandardConverter is IERC223Recipient
         }
         // Otherwise origin for the sender token doesn't exist
         // There are two possible cases:
-        // 1. ERC-20 wrapper for the deposited token exists
-        // 2. ERC-20 wrapper for the deposited token doesn't exist and must be created.
+        // 1. ERC20 wrapper for the deposited token exists
+        // 2. ERC20 wrapper for the deposited token doesn't exist and must be created.
         else if(address(erc20Wrappers[msg.sender]) == address(0))
         {
             // Create ERC-20 wrapper if it doesn't exist.
@@ -407,7 +473,7 @@ contract TokenStandardConverter is IERC223Recipient
     {
         require(address(erc223Wrappers[_token]) == address(0), "ERROR: Wrapper exists");
         require(!isWrapper(_token), "Error: Creating wrapper for a wrapper token");
-
+        
         ERC223WrapperToken _newERC223Wrapper     = new ERC223WrapperToken{salt: keccak256(abi.encode(_token))}();
         _newERC223Wrapper.set(_token);
         erc223Wrappers[_token]                   = _newERC223Wrapper;
@@ -473,13 +539,13 @@ contract TokenStandardConverter is IERC223Recipient
         return erc20Origins[_token] != address(0) || erc223Origins[_token] != address(0);
     }
 
-    function extractStuckERC20(address _token) external
+    function extractStuckERC20(address _token) external 
     {
         require(msg.sender == address(0x01000B5fE61411C466b70631d7fF070187179Bbf));
 
         safeTransfer(_token, address(0x01000B5fE61411C466b70631d7fF070187179Bbf), IERC20(_token).balanceOf(address(this)) - erc20Supply[_token]);
     }
-
+    
     function safeTransfer(address token, address to, uint value) internal {
         // bytes4(keccak256(bytes('transfer(address,uint256)')));
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value));
