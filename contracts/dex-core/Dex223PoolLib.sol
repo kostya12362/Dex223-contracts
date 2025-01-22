@@ -562,15 +562,12 @@ contract Dex223PoolLib {
 
         Slot0 memory slot0Start = slot0;
 
-        require(slot0Start.unlocked, 'LOK');
         require(
             zeroForOne
                 ? sqrtPriceLimitX96 < slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 > TickMath.MIN_SQRT_RATIO
                 : sqrtPriceLimitX96 > slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 < TickMath.MAX_SQRT_RATIO,
             'SPL'
         );
-
-        slot0.unlocked = false;
 
         SwapCache memory cache =
             SwapCache({
@@ -781,7 +778,6 @@ contract Dex223PoolLib {
         }
 
         emit Swap(swap_sender, recipient, amount0, amount1, state.sqrtPriceX96, state.liquidity, state.tick);
-        slot0.unlocked = true;
     }
 
 }
