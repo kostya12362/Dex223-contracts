@@ -33,9 +33,12 @@ contract MarginModule
     mapping (uint256 => Order)    public orders;
     mapping (uint256 => Position) public positions;
     mapping (uint256 => mapping (address => uint8)) assetIds;
+    mapping (address => bool) public isAssetLoanable;
+    mapping (address => bool) public isAssetPledgeable;
 
     uint256 orderIndex;
     uint256 positionIndex;
+    address admin;
 
     event NewOrder(address asset, uint256 orderID);
 
@@ -85,7 +88,13 @@ contract MarginModule
         address payer;
     }
 
+    modifier onlyAdmin() {
+        require(msg.sender == admin);
+	_;
+    }
+
     constructor(address _factory, address _router) {
+	admin = msg.sender;
         factory = IDex223Factory(_factory);
         router = ISwapRouter(_router);
     }
@@ -102,6 +111,9 @@ contract MarginModule
         uint16 currencyLimit
     ) public
     {
+        require(isAssetLoanable[asset]);
+        require(isAssetPledgeable[liquidationCollateral]);
+
         Order memory _newOrder = Order(msg.sender,
             orderIndex,
             tokens,
@@ -474,4 +486,13 @@ contract MarginModule
         // 
     }
 
+    function makePledgeable(address asset, bool pledgeable) public onlyAdmin {
+        require(asset != address(0));
+        isAssetPledgeable[asset] = pledgeable;
+    }
+
+    function makeLoanable(address asset, bool loanable) public onlyAdmin {
+        require(asset != address(0));
+        isAssetLoanable[asset] = loanable;
+    }
 }
