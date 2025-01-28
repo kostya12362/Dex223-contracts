@@ -83,6 +83,14 @@ IERC223Recipient
     address public call_sender;
     // store ERC223 token on deposit
     address public token_sender;
+    bool unlocked = true;
+
+    modifier lock() {
+        require(unlocked, 'LOK');
+        unlocked = false;
+        _;
+        unlocked = true;
+    }
 
     modifier adjustableSender() {
         if (call_sender == address(0))
@@ -97,7 +105,7 @@ IERC223Recipient
 
     constructor(address _factory, address _WETH9) PeripheryImmutableState(_factory, _WETH9) {}
 
-    function tokenReceived(address _from, uint _value, bytes memory _data) public override returns (bytes4)
+    function tokenReceived(address _from, uint _value, bytes memory _data) public override lock returns (bytes4)
     {
         depositERC223(_from, msg.sender, _value);
         call_sender = _from;

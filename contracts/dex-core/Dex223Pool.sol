@@ -455,7 +455,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         uint160 sqrtPriceLimitX96,
         bool prefer223,
         bytes memory data
-    ) external virtual override adjustableSender // noDelegateCall will not prevent delegatecalling
+    ) external virtual override lock adjustableSender // noDelegateCall will not prevent delegatecalling
                                                         // this method from the same contract via `tokenReceived` of ERC-223
      returns (int256 amount0, int256 amount1) {
         (bool success, bytes memory retdata) = pool_lib.delegatecall(abi.encodeWithSignature("swap(address,bool,int256,uint160,bool,bytes)", recipient, zeroForOne, amountSpecified, sqrtPriceLimitX96, prefer223, data));
@@ -476,7 +476,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
 //        require(msg.sender == WETH9, 'Not WETH9');
     }
     
-    function unwrapWETH9(address recipient, address WETH9, uint256 amountOut) public payable { 
+    function unwrapWETH9(address recipient, address WETH9, uint256 amountOut) public lock payable { 
         uint256 balanceWETH9 = IWETH9(WETH9).balanceOf(address(this));
         require(balanceWETH9 >= amountOut, 'Insufficient WETH9');
 
@@ -497,7 +497,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         bytes memory data,
         uint256 deadline,
         bool unwrapETH
-    ) external virtual checkDeadline(deadline) returns (uint256 amountOut) {
+    ) external virtual lock checkDeadline(deadline) returns (uint256 amountOut) {
         (bool success, bytes memory retdata) = pool_lib.delegatecall(
             abi.encodeWithSignature("swap(address,bool,int256,uint160,bool,bytes)",
                 unwrapETH ? address(this) : recipient, zeroForOne, amountSpecified, sqrtPriceLimitX96,
@@ -590,7 +590,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         return abi.decode(retdata, (uint128, uint128));
     }
 
-    function withdrawEther(address payable _to, uint256 _amount) external onlyFactoryOwner {
+    function withdrawEther(address payable _to, uint256 _amount) external lock onlyFactoryOwner {
         // Transfer the requested amount of Ether
         _to.transfer(_amount);
     }
