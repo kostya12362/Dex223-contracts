@@ -129,10 +129,10 @@ contract MarginModule
             0,
             currencyLimit);
 
-        orderIndex++;
         orders[orderIndex] = _newOrder;
 
         emit NewOrder(asset, orderIndex);
+        orderIndex++;
     }
 
     function orderDepositEth(uint256 orderId, uint256 amount) public payable {
@@ -219,7 +219,6 @@ contract MarginModule
             orders[_orderId].baseAsset,
             _amount,
             orders[_orderId].interestRate);
-        positionIndex++;
         positions[positionIndex] = _newPosition;
 
         addAsset(positionIndex, orders[_orderId].collateralAssets[_collateralIdx], int(_collateralAmount));
@@ -243,6 +242,7 @@ contract MarginModule
         // This automatically checks if all the collateral that was paid satisfies the criteria set by the lender.
 
         require(!subjectToLiquidation(positionIndex));
+        positionIndex++;
     }
 
     function marginSwap(uint256 _positionId,
