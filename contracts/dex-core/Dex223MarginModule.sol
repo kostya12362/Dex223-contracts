@@ -198,33 +198,15 @@ contract MarginModule
         }
     }
 
-    function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public
-    {
+    function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public {
         // Create a new position template.
 
+        require(isOrderOpen);
         require(orders[_orderId].collateralAssets[_collateralIdx] != address(0));
-        address[] memory _assets;
+
+	address[] memory _assets;
         uint256[] memory _balances;
 
-        /*
-    struct Position
-    {
-        uint256 orderId;
-        address owner;
-
-        address[] assets;
-        uint256[] balances;
-
-        address[] whitelistedTokens;
-        address[] whitelistedTokenLists;
-
-        uint256 deadline;
-
-        address baseAsset;
-        uint256 initialBalance;
-        uint256 interest;
-    }
-    */
         Position memory _newPosition = Position(_orderId,
             msg.sender,
             _assets,
@@ -239,13 +221,16 @@ contract MarginModule
             orders[_orderId].interestRate);
         positionIndex++;
         positions[positionIndex] = _newPosition;
+
         addAsset(positionIndex, orders[_orderId].collateralAssets[_collateralIdx], int(_collateralAmount));
 //        positions[positionIndex].assets.push(orders[_orderId].collateralAssets[_collateralIdx]);
 //        positions[positionIndex].balances.push(_collateralAmount);
 
         // Withdraw the tokens (collateral).
 
+	uint256 _balance = IERC20Minimal(orders[_orderId].collateralAssets[_collateralIdx]).balanceOf(address(this));
         IERC20Minimal(orders[_orderId].collateralAssets[_collateralIdx]).transferFrom(msg.sender, address(this), _collateralAmount);
+	require(IERC20Minimal(orders[_orderId].collateralAssets[_collateralIdx]).balanceOf(address(this)) >= _balance + _collateralAmount);
 
         // Copy the balance loaned from "order" to the balance of a new "position"
         // ------------ removed in v2 as the values are filled during position creation ------------
