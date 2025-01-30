@@ -135,21 +135,27 @@ contract MarginModule
         emit NewOrder(asset, orderIndex);
     }
 
-    function orderDeposit(uint256 orderId, uint256 amount) public payable
-    {
+    function orderDepositEth(uint256 orderId, uint256 amount) public payable {
         require(orders[orderId].owner == msg.sender);
-        if(orders[orderId].baseAsset == address(0))
-        {
-            orders[orderId].balance += msg.value;
-        }
-        else
-        {
-            // Remember the crrent balance of the contract
-            uint256 _balance = IERC20Minimal(orders[orderId].baseAsset).balanceOf(address(this));
-            IERC20Minimal(orders[orderId].baseAsset).transferFrom(msg.sender, address(this), amount);
-            require(IERC20Minimal(orders[orderId].baseAsset).balanceOf(address(this)) >= _balance + amount);
-            orders[orderId].balance += amount;
-        }
+        require(isOrderOpen);
+        require(orders[orderId].baseAsset == address(0));
+
+        orders[orderId].balance += msg.value;
+    }
+
+    function orderDeposit(uint256 orderId, uint256 amount) public {
+        require(orders[orderId].owner == msg.sender);
+        require(isOrderOpen);
+        require(orders[orderId].baseAsset != address(0));
+
+	uint256 _balance = IERC20Minimal(orders[orderId].baseAsset).balanceOf(address(this));
+	IERC20Minimal(orders[orderId].baseAsset).transferFrom(msg.sender, address(this), amount);
+	require(IERC20Minimal(orders[orderId].baseAsset).balanceOf(address(this)) >= _balance + amount);
+	orders[orderId].balance += amount;
+    }
+
+    function isOrderOpen(uint256 id) public view returns(bool) {
+        return orders[id].state == 0;
     }
 
     function orderWithdraw() public
