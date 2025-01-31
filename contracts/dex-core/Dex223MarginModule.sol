@@ -158,8 +158,14 @@ contract MarginModule
         return orders[id].state == 0;
     }
 
-    function orderWithdraw() public
-    {
+    function orderWithdraw(uint256 orderId, uint256 amount) public {
+        require(orders[orderId].owner == msg.sender);
+        require(isOrderOpen);
+        require(orders[orderId].baseAsset != address(0));
+	require(orders[orderId].balance >= _amount);
+
+	IERC20Minimal(orders[orderId].baseAsset).transfer(msg.sender, amount);
+	orders[orderId].balance -= amount;
 
     }
 
@@ -204,6 +210,7 @@ contract MarginModule
         require(isOrderOpen);
         require(orders[_orderId].collateralAssets[_collateralIdx] != address(0));
 	require(orders[_orderId].minCollateralAmounts[_collateralIdx] <= _collateralAmount);
+	require(orders[_orderId].balance > _amount);
 
 	address[] memory _assets;
         uint256[] memory _balances;
@@ -221,6 +228,8 @@ contract MarginModule
             _amount,
             orders[_orderId].interestRate);
         positions[positionIndex] = _newPosition;
+
+	orders[_orderId].balance -= _amount;
 
         addAsset(positionIndex, orders[_orderId].collateralAssets[_collateralIdx], int(_collateralAmount));
 //        positions[positionIndex].assets.push(orders[_orderId].collateralAssets[_collateralIdx]);
