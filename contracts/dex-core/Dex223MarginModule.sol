@@ -51,7 +51,7 @@ contract MarginModule
         uint256 interestRate;
         uint256 duration;
         address[] collateralAssets;
-        uint256 minCollateralAmounts;
+        uint256[] minCollateralAmounts;
         address liquidationCollateral;
         uint256 liquidationCollateralAmount;
 
@@ -103,8 +103,8 @@ contract MarginModule
         address listingContract,
         uint256 interestRate,
         uint256 duration,
-        address[] memory collateral,
-        uint256 minCollateralAmount,
+        address[] calldata collateral,
+        uint256[] calldata minCollateralAmounts,
         address liquidationCollateral,
         uint256 liquidationCollateralAmount,
         address asset,
@@ -121,7 +121,7 @@ contract MarginModule
             interestRate,
             duration,
             collateral,
-            minCollateralAmount,
+            minCollateralAmounts,
             liquidationCollateral,
             liquidationCollateralAmount,
             asset,
@@ -203,6 +203,7 @@ contract MarginModule
 
         require(isOrderOpen);
         require(orders[_orderId].collateralAssets[_collateralIdx] != address(0));
+	require(orders[_orderId].minCollateralAmounts[_collateralIdx] <= _collateralAmount);
 
 	address[] memory _assets;
         uint256[] memory _balances;
