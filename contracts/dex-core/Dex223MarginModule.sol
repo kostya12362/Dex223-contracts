@@ -205,14 +205,17 @@ contract MarginModule
     }
 
     function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public {
-        // Create a new position template.
 
         require(isOrderOpen(_orderId));
-        require(orders[_orderId].collateralAssets[_collateralIdx] != address(0));
-	require(orders[_orderId].minCollateralAmounts[_collateralIdx] <= _collateralAmount);
-	require(orders[_orderId].balance > _amount);
 
-	address[] memory _assets;
+        Order storage order = orders[_orderId];
+        address collateralAsset = order.collateralAssets[_collateralIdx];
+
+        require(collateralAsset != address(0));
+        require(order.minCollateralAmounts[_collateralIdx] <= _collateralAmount);
+        require(order.balance > _amount);
+
+        address[] memory _assets;
         uint256[] memory _balances;
 
         Position memory _newPosition = Position(_orderId,
@@ -220,32 +223,26 @@ contract MarginModule
             _assets,
             _balances,
 
-            orders[_orderId].whitelistedTokens,
-            orders[_orderId].whitelistedTokenList,
+            order.whitelistedTokens,
+            order.whitelistedTokenList,
 
-            orders[_orderId].duration,
-            orders[_orderId].baseAsset,
+            order.duration,
+            order.baseAsset,
             _amount,
-            orders[_orderId].interestRate);
+            order.interestRate);
+
         positions[positionIndex] = _newPosition;
 
-	orders[_orderId].balance -= _amount;
+        order.balance -= _amount;
+        addAsset(positionIndex, order.baseAsset, int(_amount));
 
-        addAsset(positionIndex, orders[_orderId].collateralAssets[_collateralIdx], int(_collateralAmount));
-//        positions[positionIndex].assets.push(orders[_orderId].collateralAssets[_collateralIdx]);
-//        positions[positionIndex].balances.push(_collateralAmount);
+        addAsset(positionIndex, collateralAsset, int(_collateralAmount));
 
-        // Withdraw the tokens (collateral).
+        // Deposit the tokens (collateral).
 
-	uint256 _balance = IERC20Minimal(orders[_orderId].collateralAssets[_collateralIdx]).balanceOf(address(this));
-        IERC20Minimal(orders[_orderId].collateralAssets[_collateralIdx]).transferFrom(msg.sender, address(this), _collateralAmount);
-	require(IERC20Minimal(orders[_orderId].collateralAssets[_collateralIdx]).balanceOf(address(this)) >= _balance + _collateralAmount);
-
-        // Copy the balance loaned from "order" to the balance of a new "position"
-        // ------------ removed in v2 as the values are filled during position creation ------------
-
-        //positions[positionIndex].assets.push(orders[_orderId].baseAsset);
-        //positions[positionIndex].balances.push(_amount);
+        uint256 _balance = IERC20Minimal(collateralAsset).balanceOf(address(this));
+        IERC20Minimal(collateralAsset).transferFrom(msg.sender, address(this), _collateralAmount);
+        require(IERC20Minimal(collateralAsset).balanceOf(address(this)) >= _balance + _collateralAmount);
 
         // Make sure position is not subject to liquidation right after it was created.
         // Revert otherwise.
