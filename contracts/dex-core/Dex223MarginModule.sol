@@ -77,10 +77,13 @@ contract MarginModule
         address whitelistedTokenList;
 
         uint256 deadline;
+        uint256 createdAt;
 
         address baseAsset;
         uint256 initialBalance;
         uint256 interest;
+
+        uint256 paidDays;
     }
 
     struct SwapCallbackData {
@@ -227,9 +230,11 @@ contract MarginModule
             order.whitelistedTokenList,
 
             order.duration,
+            block.timestamp,
             order.baseAsset,
             _amount,
-            order.interestRate);
+            order.interestRate,
+            0);
 
         positions[positionIndex] = _newPosition;
 
@@ -483,6 +488,32 @@ contract MarginModule
     {
         // 
     }
+
+    /* order owner privileges */
+
+    function getInterest(uint256 id) public {
+        require(id < positionIndex);
+
+        Position storage position = positions[id];
+        Order storage order = orders[position.orderId];
+
+        require(order.owner == msg.sender);
+        require(block.timestamp > position.createdAt);
+
+        uint256 currentDuration = position.createdAt - block.timestamp;
+        uint256 daysForPayment = currentDuration / 1 days - position.paidDays;
+        position.paidDays += daysForPayment;
+
+        uint256 baseAmountForPayment = daysForPayment * position.interest * position.initialBalance;
+        
+        require(baseAmountForPayment > 0);
+
+        // calculate rate of collateral asset to base asset
+        // make payment with collateral asset 
+
+    }
+
+    /* MarginModule admin privileges */
 
     function makePledgeable(address asset, bool pledgeable) public onlyAdmin {
         require(asset != address(0));
