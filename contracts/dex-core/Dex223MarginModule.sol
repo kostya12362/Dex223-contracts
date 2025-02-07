@@ -195,7 +195,7 @@ contract MarginModule
 	uint256[] storage balances = position.balances;
 
         if (_idx > 0) {
-            balances[_idx-1] += uint(int(balances[_idx-1]) + _amount);
+            balances[_idx-1] = uint(int(balances[_idx-1]) + _amount);
             // if asset become = 0 - remove it from array 
             if (balances[_idx-1] == 0) {
                 assets[_idx-1] = assets[assets.length - 1];
