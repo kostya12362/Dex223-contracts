@@ -206,6 +206,7 @@ contract MarginModule
             }
         } else {
             require(checkCurrencyLimit(_positionIndex));
+            require(_amount > 0);
 
             assets.push(_asset);
             balances.push(uint(_amount));
