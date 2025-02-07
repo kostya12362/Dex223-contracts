@@ -187,7 +187,7 @@ contract MarginModule
 
     }
 
-    function addAsset(uint256 _positionIndex, address _asset, int256 _amount) internal
+    function addAsset(uint256 _positionIndex, address _asset, uint256 _amount) internal
     {
         uint8 _idx = assetIds[_positionIndex][_asset];
 	Position storage position = positions[_positionIndex];
@@ -195,23 +195,44 @@ contract MarginModule
 	uint256[] storage balances = position.balances;
 
         if (_idx > 0) {
-            balances[_idx-1] = uint(int(balances[_idx-1]) + _amount);
-            // if asset become = 0 - remove it from array 
-            if (balances[_idx-1] == 0) {
-                assets[_idx-1] = assets[assets.length - 1];
-                assets.pop();
-                balances[_idx-1] = balances[balances.length - 1];
-                balances.pop();
-                assetIds[_positionIndex][_asset] = 0;
-            }
+            balances[_idx-1] += _amount;
+
         } else {
             require(checkCurrencyLimit(_positionIndex));
             require(_amount > 0);
 
             assets.push(_asset);
-            balances.push(uint(_amount));
+            balances.push(_amount);
             assetIds[_positionIndex][_asset] = uint8(assets.length);
         }
+    }
+
+    function reduceAsset(uint256 _positionIndex, address _asset, uint256 _amount) internal {
+        uint8 _idx = assetIds[_positionIndex][_asset];
+        Position storage position = positions[_positionIndex];
+        address[] storage assets = position.assets;
+        uint256[] storage balances = position.balances;
+
+        require(_idx > 0);
+	require(balances[_idx-1] >= _amount);
+
+        balances[_idx-1] -= _amount;
+
+        if (balances[_idx-1] == 0) {
+            removeAsset(_positionIndex, _asset, _idx);
+        }
+    }
+
+    function removeAsset(uint256 _positionIndex, address _asset, uint256 _idx) internal {
+        Position storage position = positions[_positionIndex];
+        address[] storage assets = position.assets;
+        uint256[] storage balances = position.balances;
+
+        assets[_idx-1] = assets[assets.length - 1];
+        assets.pop();
+        balances[_idx-1] = balances[balances.length - 1];
+        balances.pop();
+        assetIds[_positionIndex][_asset] = 0;
     }
 
     function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public {
@@ -246,9 +267,9 @@ contract MarginModule
         positions[positionIndex] = _newPosition;
 
         order.balance -= _amount;
-        addAsset(positionIndex, order.baseAsset, int(_amount));
+        addAsset(positionIndex, order.baseAsset, _amount);
 
-        addAsset(positionIndex, collateralAsset, int(_collateralAmount));
+        addAsset(positionIndex, collateralAsset, _collateralAmount);
 
         // Deposit the tokens (collateral).
 
@@ -321,8 +342,8 @@ contract MarginModule
         require(amountOut > 0);
 
         // add new (received) asset to Position
-        addAsset(_positionId, _asset2, int256(amountOut));
-        addAsset(_positionId, _asset1, -int256(_amount));
+        addAsset(_positionId, _asset2, amountOut);
+        reduceAsset(_positionId, _asset1, _amount);
     }
 
     struct SwapData {
@@ -470,8 +491,8 @@ contract MarginModule
         require(amountOut > 0);
 
         // add new (received) asset to Position
-        addAsset(_positionId, _asset2, int256(amountOut));
-        addAsset(_positionId, _asset1, -int256(_amount));
+        addAsset(_positionId, _asset2, amountOut);
+        reduceAsset(_positionId, _asset1, _amount);
     }
 
     function subjectToLiquidation(uint256 _positionId) public view returns (bool)
