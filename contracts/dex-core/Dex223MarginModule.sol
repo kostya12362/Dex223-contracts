@@ -190,20 +190,24 @@ contract MarginModule
     function addAsset(uint256 _positionIndex, address _asset, int256 _amount) internal
     {
         uint8 _idx = assetIds[_positionIndex][_asset];
+	Position storage position = positions[_positionIndex];
+        address[] storage assets = position.assets;
+	uint256[] storage balances = position.balances;
+
         if (_idx > 0) {
-            positions[_positionIndex].balances[_idx-1] += uint(int(positions[_positionIndex].balances[_idx-1]) + _amount);
+            balances[_idx-1] += uint(int(balances[_idx-1]) + _amount);
             // if asset become = 0 - remove it from array 
-            if (positions[_positionIndex].balances[_idx-1] == 0) {
-                positions[_positionIndex].assets[_idx-1] = positions[_positionIndex].assets[positions[_positionIndex].assets.length - 1];
-                positions[_positionIndex].assets.pop();
-                positions[_positionIndex].balances[_idx-1] = positions[_positionIndex].balances[positions[_positionIndex].balances.length - 1];
-                positions[_positionIndex].balances.pop();
+            if (balances[_idx-1] == 0) {
+                assets[_idx-1] = assets[assets.length - 1];
+                assets.pop();
+                balances[_idx-1] = balances[balances.length - 1];
+                balances.pop();
                 assetIds[_positionIndex][_asset] = 0;
             }
         } else {
-            positions[_positionIndex].assets.push(_asset);
-            positions[_positionIndex].balances.push(uint(_amount));
-            assetIds[_positionIndex][_asset] = uint8(positions[_positionIndex].assets.length);
+            assets.push(_asset);
+            balances.push(uint(_amount));
+            assetIds[_positionIndex][_asset] = uint8(assets.length);
         }
     }
 
