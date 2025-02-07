@@ -508,9 +508,27 @@ contract MarginModule
         
         require(baseAmountForPayment > 0);
 
-        // calculate rate of collateral asset to base asset
-        // make payment with collateral asset 
+        // TODO: calculate rate of collateral asset to base asset
 
+	uint256 collateralAmountForPayment = 1; // TODO: change to calculated value
+
+	_sendAsset(position.assets[1], collateralAmountForPayment);
+    }
+
+    /* Internal functions */
+
+    function _sendAsset(address asset, uint256 amount) internal {
+        require(asset != address(0));
+
+	IERC20Minimal(asset).transfer(msg.sender, amount);
+    }
+
+    function _receiveAsset(address asset, uint256 amount) internal {
+        require(asset != address(0));
+
+	uint256 balance = IERC20Minimal(asset).balanceOf(address(this));
+	IERC20Minimal(asset).transferFrom(msg.sender, address(this), amount);
+	require(IERC20Minimal(asset).balanceOf(address(this)) >= balance + amount);
     }
 
     /* MarginModule admin privileges */
