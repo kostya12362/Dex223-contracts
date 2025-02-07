@@ -228,11 +228,13 @@ contract MarginModule
         address[] storage assets = position.assets;
         uint256[] storage balances = position.balances;
 
-        assets[_idx-1] = assets[assets.length - 1];
+        address lastAsset = assets[assets.length - 1];
+        assets[_idx-1] = lastAsset;
         assets.pop();
         balances[_idx-1] = balances[balances.length - 1];
         balances.pop();
         assetIds[_positionIndex][_asset] = 0;
+        assetIds[_positionIndex][lastAsset] = _idx;
     }
 
     function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public {
