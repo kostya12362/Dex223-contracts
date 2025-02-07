@@ -205,6 +205,8 @@ contract MarginModule
                 assetIds[_positionIndex][_asset] = 0;
             }
         } else {
+            require(checkCurrencyLimit(_positionIndex));
+
             assets.push(_asset);
             balances.push(uint(_amount));
             assetIds[_positionIndex][_asset] = uint8(assets.length);
@@ -320,9 +322,6 @@ contract MarginModule
         // add new (received) asset to Position
         addAsset(_positionId, _asset2, int256(amountOut));
         addAsset(_positionId, _asset1, -int256(_amount));
-
-        // Check if we do not exceed the set currency limit.
-        require(checkCurrencyLimit(_positionId));
     }
 
     struct SwapData {
@@ -472,14 +471,6 @@ contract MarginModule
         // add new (received) asset to Position
         addAsset(_positionId, _asset2, int256(amountOut));
         addAsset(_positionId, _asset1, -int256(_amount));
-
-        // Check if we do not exceed the set currency limit.
-        require(checkCurrencyLimit(_positionId));
-    }
-
-    function checkCurrencyLimit(uint256 _positionId) internal view returns (bool)
-    {
-        return positions[_positionId].assets.length <= orders[positions[_positionId].orderId].currencyLimit;
     }
 
     function subjectToLiquidation(uint256 _positionId) public view returns (bool)
@@ -533,6 +524,10 @@ contract MarginModule
 	uint256 balance = IERC20Minimal(asset).balanceOf(address(this));
 	IERC20Minimal(asset).transferFrom(msg.sender, address(this), amount);
 	require(IERC20Minimal(asset).balanceOf(address(this)) >= balance + amount);
+    }
+
+    function checkCurrencyLimit(uint256 _positionId) internal view returns (bool) {
+        return positions[_positionId].assets.length + 1 <= orders[positions[_positionId].orderId].currencyLimit;
     }
 
     /* MarginModule admin privileges */
