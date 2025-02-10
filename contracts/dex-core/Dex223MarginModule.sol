@@ -222,7 +222,7 @@ contract MarginModule {
         }
     }
 
-    function removeAsset(uint256 _positionIndex, address _asset, uint256 _idx) internal {
+    function removeAsset(uint256 _positionIndex, address _asset, uint8 _idx) internal {
         Position storage position = positions[_positionIndex];
         address[] storage assets = position.assets;
         uint256[] storage balances = position.balances;
