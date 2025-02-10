@@ -169,8 +169,14 @@ contract MarginModule {
 
     }
 
-    function positionDeposit() public {
+    function positionDeposit(uint256 positionId, address asset, uint256 amount) public {
+        require(positions[positionId].owner == msg.sender, "Only the owner can deposit into this position");
+        require(amount > 0, "Deposit must exceed zero");
 
+        _validateAsset(positionId, asset);
+        _receiveAsset(asset, amount);
+
+        addAsset(positionId, asset, amount);
     }
 
     function positionWithdraw() public {
@@ -207,7 +213,7 @@ contract MarginModule {
         uint256[] storage balances = position.balances;
 
         require(_idx > 0);
-	require(balances[_idx-1] >= _amount);
+        require(balances[_idx-1] >= _amount);
 
         balances[_idx-1] -= _amount;
 
@@ -514,6 +520,10 @@ contract MarginModule {
     }
 
     /* Internal functions */
+
+
+    function _validateAsset(uint256 positionId, address asset) internal {
+    }
 
     function _sendAsset(address asset, uint256 amount) internal {
         require(asset != address(0));
