@@ -25,8 +25,7 @@ interface IDex223Pool {
     ) external returns (uint256 amountOut);
 }
 
-contract MarginModule
-{
+contract MarginModule {
     IDex223Factory public factory;
     ISwapRouter public router;
 
@@ -42,8 +41,7 @@ contract MarginModule
 
     event NewOrder(address asset, uint256 orderID);
 
-    struct Order
-    {
+    struct Order {
         address owner;
         uint256 id;
         address[] whitelistedTokens;
@@ -65,8 +63,7 @@ contract MarginModule
         uint16 currencyLimit;
     }
 
-    struct Position
-    {
+    struct Position {
         uint256 orderId;
         address owner;
 
@@ -112,8 +109,8 @@ contract MarginModule
         uint256 liquidationCollateralAmount,
         address asset,
         uint16 currencyLimit
-    ) public
-    {
+    ) public {
+
         require(isAssetLoanable[asset]);
         require(isAssetPledgeable[liquidationCollateral]);
 
@@ -172,23 +169,19 @@ contract MarginModule
 
     }
 
-    function positionDeposit() public
-    {
+    function positionDeposit() public {
 
     }
 
-    function positionWithdraw() public
-    {
+    function positionWithdraw() public {
 
     }
 
-    function positionClose() public
-    {
+    function positionClose() public {
 
     }
 
-    function addAsset(uint256 _positionIndex, address _asset, uint256 _amount) internal
-    {
+    function addAsset(uint256 _positionIndex, address _asset, uint256 _amount) internal {
         uint8 _idx = assetIds[_positionIndex][_asset];
         Position storage position = positions[_positionIndex];
         address[] storage assets = position.assets;
@@ -294,29 +287,24 @@ contract MarginModule
         uint256 _whitelistId2,
         uint256 _amount,
         address _asset2,
-        uint24 _feeTier) public
-    {
+        uint24 _feeTier) public {
+
         // Only allow the owner of the position to perform trading operations with it.
         require(positions[_positionId].owner == msg.sender);
         address _asset1 = positions[_positionId].assets[_assetId1];
 
         // Check if the first asset is allowed within this position.
-        if(_whitelistId1 != 0)
-        {
+        if(_whitelistId1 != 0) {
             require(positions[_positionId].whitelistedTokens[_whitelistId1] == _asset1);
-        }
-        else
-        {
+        } else {
             require(IDex223Autolisting(positions[_positionId].whitelistedTokenList).isListed(_asset1));
         }
 
         // Check if the second asset is allowed within this position.
-        if(_whitelistId2 != 0)
-        {
+        if(_whitelistId2 != 0) {
             require(positions[_positionId].whitelistedTokens[_whitelistId2] == _asset2);
         }
-        else
-        {
+        else {
             require(IDex223Autolisting(positions[_positionId].whitelistedTokenList).isListed(_asset2));
         }
 
@@ -412,29 +400,22 @@ contract MarginModule
         uint256 _whitelistId2,
         uint256 _amount,
         address _asset2, // TODO can it be ERC20 ?
-        uint24 _feeTier) public
-    {
+        uint24 _feeTier) public {
         // Only allow the owner of the position to perform trading operations with it.
         require(positions[_positionId].owner == msg.sender);
         address _asset1 = positions[_positionId].assets[_assetId1];
 
         // Check if the first asset is allowed within this position.
-        if(_whitelistId1 != 0)
-        {
+        if(_whitelistId1 != 0) {
             require(positions[_positionId].whitelistedTokens[_whitelistId1] == _asset1);
-        }
-        else
-        {
+        } else {
             require(IDex223Autolisting(positions[_positionId].whitelistedTokenList).isListed(_asset1));
         }
 
         // Check if the second asset is allowed within this position.
-        if(_whitelistId2 != 0)
-        {
+        if(_whitelistId2 != 0) {
             require(positions[_positionId].whitelistedTokens[_whitelistId2] == _asset2);
-        }
-        else
-        {
+        } else {
             require(IDex223Autolisting(positions[_positionId].whitelistedTokenList).isListed(_asset2));
         }
 
@@ -497,14 +478,12 @@ contract MarginModule
         reduceAsset(_positionId, _asset1, _amount);
     }
 
-    function subjectToLiquidation(uint256 _positionId) public view returns (bool)
-    {
+    function subjectToLiquidation(uint256 _positionId) public view returns (bool) {
         // Always returns false for testing reasons.
         return false;
     }
 
-    function liquidate() public
-    {
+    function liquidate() public {
         // 
     }
 
