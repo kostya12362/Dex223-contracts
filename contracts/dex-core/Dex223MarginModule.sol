@@ -93,11 +93,11 @@ contract MarginModule
 
     modifier onlyAdmin() {
         require(msg.sender == admin);
-	_;
+        _;
     }
 
     constructor(address _factory, address _router) {
-	admin = msg.sender;
+        admin = msg.sender;
         factory = IDex223Factory(_factory);
         router = ISwapRouter(_router);
     }
@@ -151,10 +151,10 @@ contract MarginModule
         require(isOrderOpen(orderId));
         require(orders[orderId].baseAsset != address(0));
 
-	uint256 _balance = IERC20Minimal(orders[orderId].baseAsset).balanceOf(address(this));
-	IERC20Minimal(orders[orderId].baseAsset).transferFrom(msg.sender, address(this), amount);
-	require(IERC20Minimal(orders[orderId].baseAsset).balanceOf(address(this)) >= _balance + amount);
-	orders[orderId].balance += amount;
+        uint256 _balance = IERC20Minimal(orders[orderId].baseAsset).balanceOf(address(this));
+        IERC20Minimal(orders[orderId].baseAsset).transferFrom(msg.sender, address(this), amount);
+        require(IERC20Minimal(orders[orderId].baseAsset).balanceOf(address(this)) >= _balance + amount);
+        orders[orderId].balance += amount;
     }
 
     function isOrderOpen(uint256 id) public view returns(bool) {
@@ -167,8 +167,8 @@ contract MarginModule
         require(orders[orderId].baseAsset != address(0));
         require(orders[orderId].balance >= amount);
 
-	IERC20Minimal(orders[orderId].baseAsset).transfer(msg.sender, amount);
-	orders[orderId].balance -= amount;
+        IERC20Minimal(orders[orderId].baseAsset).transfer(msg.sender, amount);
+        orders[orderId].balance -= amount;
 
     }
 
@@ -190,9 +190,9 @@ contract MarginModule
     function addAsset(uint256 _positionIndex, address _asset, uint256 _amount) internal
     {
         uint8 _idx = assetIds[_positionIndex][_asset];
-	Position storage position = positions[_positionIndex];
+        Position storage position = positions[_positionIndex];
         address[] storage assets = position.assets;
-	uint256[] storage balances = position.balances;
+        uint256[] storage balances = position.balances;
 
         if (_idx > 0) {
             balances[_idx-1] += _amount;
@@ -529,9 +529,9 @@ contract MarginModule
 
         // TODO: calculate rate of collateral asset to base asset
 
-	uint256 collateralAmountForPayment = 1; // TODO: change to calculated value
+        uint256 collateralAmountForPayment = 1; // TODO: change to calculated value
 
-	_sendAsset(position.assets[1], collateralAmountForPayment);
+        _sendAsset(position.assets[1], collateralAmountForPayment);
     }
 
     /* Internal functions */
@@ -539,15 +539,15 @@ contract MarginModule
     function _sendAsset(address asset, uint256 amount) internal {
         require(asset != address(0));
 
-	IERC20Minimal(asset).transfer(msg.sender, amount);
+        IERC20Minimal(asset).transfer(msg.sender, amount);
     }
 
     function _receiveAsset(address asset, uint256 amount) internal {
         require(asset != address(0));
 
-	uint256 balance = IERC20Minimal(asset).balanceOf(address(this));
-	IERC20Minimal(asset).transferFrom(msg.sender, address(this), amount);
-	require(IERC20Minimal(asset).balanceOf(address(this)) >= balance + amount);
+        uint256 balance = IERC20Minimal(asset).balanceOf(address(this));
+        IERC20Minimal(asset).transferFrom(msg.sender, address(this), amount);
+        require(IERC20Minimal(asset).balanceOf(address(this)) >= balance + amount);
     }
 
     function checkCurrencyLimit(uint256 _positionId) internal view returns (bool) {
