@@ -169,11 +169,11 @@ contract MarginModule {
 
     }
 
-    function positionDeposit(uint256 positionId, address asset, uint256 amount) public {
+    function positionDeposit(uint256 positionId, address asset, uint256 idInWhitelist,  uint256 amount) public {
         require(positions[positionId].owner == msg.sender, "Only the owner can deposit into this position");
         require(amount > 0, "Deposit must exceed zero");
 
-        _validateAsset(positionId, asset);
+        _validateAsset(positionId, asset, idInWhitelist);
         _receiveAsset(asset, amount);
 
         addAsset(positionId, asset, amount);
@@ -522,7 +522,14 @@ contract MarginModule {
     /* Internal functions */
 
 
-    function _validateAsset(uint256 positionId, address asset) internal {
+    function _validateAsset(uint256 positionId, address asset, uint256 idInWhitelist) internal {
+        Position storage position = positions[positionId];
+
+        if(idInWhitelist != 0) {
+            require(position.whitelistedTokens[idInWhitelist] == asset);
+        } else {
+            require(IDex223Autolisting(position.whitelistedTokenList).isListed(asset));
+        }
     }
 
     function _sendAsset(address asset, uint256 amount) internal {
