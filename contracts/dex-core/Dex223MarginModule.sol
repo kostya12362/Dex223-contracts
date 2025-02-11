@@ -299,20 +299,8 @@ contract MarginModule {
         require(positions[_positionId].owner == msg.sender);
         address _asset1 = positions[_positionId].assets[_assetId1];
 
-        // Check if the first asset is allowed within this position.
-        if(_whitelistId1 != 0) {
-            require(positions[_positionId].whitelistedTokens[_whitelistId1] == _asset1);
-        } else {
-            require(IDex223Autolisting(positions[_positionId].whitelistedTokenList).isListed(_asset1));
-        }
-
-        // Check if the second asset is allowed within this position.
-        if(_whitelistId2 != 0) {
-            require(positions[_positionId].whitelistedTokens[_whitelistId2] == _asset2);
-        }
-        else {
-            require(IDex223Autolisting(positions[_positionId].whitelistedTokenList).isListed(_asset2));
-        }
+        _validateAsset(_positionId, _asset1, _whitelistId1);
+        _validateAsset(_positionId, _asset2, _whitelistId2);
 
         // check if position has enough Asset1
         require(positions[_positionId].balances[_assetId1] >= _amount);
@@ -411,19 +399,8 @@ contract MarginModule {
         require(positions[_positionId].owner == msg.sender);
         address _asset1 = positions[_positionId].assets[_assetId1];
 
-        // Check if the first asset is allowed within this position.
-        if(_whitelistId1 != 0) {
-            require(positions[_positionId].whitelistedTokens[_whitelistId1] == _asset1);
-        } else {
-            require(IDex223Autolisting(positions[_positionId].whitelistedTokenList).isListed(_asset1));
-        }
-
-        // Check if the second asset is allowed within this position.
-        if(_whitelistId2 != 0) {
-            require(positions[_positionId].whitelistedTokens[_whitelistId2] == _asset2);
-        } else {
-            require(IDex223Autolisting(positions[_positionId].whitelistedTokenList).isListed(_asset2));
-        }
+        _validateAsset(_positionId, _asset1, _whitelistId1);
+        _validateAsset(_positionId, _asset2, _whitelistId2);
 
         // check if position has enough Asset1
         require(positions[_positionId].balances[_assetId1] >= _amount);
