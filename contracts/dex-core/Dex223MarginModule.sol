@@ -81,6 +81,8 @@ contract MarginModule {
         uint256 interest;
 
         uint256 paidDays;
+        bool open;
+        uint256 frozenTime;
     }
 
     struct SwapCallbackData {
@@ -263,6 +265,8 @@ contract MarginModule {
             order.baseAsset,
             _amount,
             order.interestRate,
+            0,
+            true,
             0);
 
         positions[positionIndex] = _newPosition;
@@ -461,13 +465,31 @@ contract MarginModule {
         reduceAsset(_positionId, _asset1, _amount);
     }
 
-    function subjectToLiquidation(uint256 _positionId) public view returns (bool) {
-        // Always returns false for testing reasons.
+    function subjectToLiquidation(uint256 positionId) public view returns (bool) {
+        Position storage position = positions[positionId];
+        if (position.deadline <= block.timestamp) {
+            return true;
+        }
+        // TODO: another check for a sufficient amount of funds in the position
         return false;
     }
 
-    function liquidate() public {
-        // 
+    function liquidate(uint256 positionId) public {
+        Position storage position = positions[positionId];
+
+        require(position.open);
+
+        if (position.frozenTime > 0) {
+            require(position.frozenTime < block.timestamp);
+            _liquidate(positionId);
+
+        } else if (subjectToLiquidation(positionId)) {
+            position.frozenTime = block.timestamp;
+        }
+    }
+
+    function _liquidate(uint256 positionId) internal {
+        
     }
 
     /* order owner privileges */
