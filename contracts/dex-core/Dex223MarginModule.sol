@@ -26,6 +26,7 @@ interface IDex223Pool {
 }
 
 contract MarginModule {
+    uint256 constant private MAX_UINT8 = 255;
     IDex223Factory public factory;
     ISwapRouter public router;
 
@@ -61,6 +62,7 @@ contract MarginModule {
         // 2 - disabled, empty
 
         uint16 currencyLimit;
+        uint8 leverage;
     }
 
     struct Position {
@@ -110,11 +112,13 @@ contract MarginModule {
         address liquidationCollateral,
         uint256 liquidationCollateralAmount,
         address asset,
-        uint16 currencyLimit
+        uint16 currencyLimit,
+        uint8 leverage
     ) public {
 
         require(isAssetLoanable[asset]);
         require(isAssetPledgeable[liquidationCollateral]);
+        require(leverage > 1);
 
         Order memory _newOrder = Order(msg.sender,
             orderIndex,
@@ -129,7 +133,8 @@ contract MarginModule {
             asset,
             0,
             0,
-            currencyLimit);
+            currencyLimit,
+            leverage);
 
         orders[orderIndex] = _newOrder;
 
@@ -248,6 +253,14 @@ contract MarginModule {
         require(collateralAsset != address(0));
         require(order.minCollateralAmounts[_collateralIdx] <= _collateralAmount);
         require(order.balance > _amount);
+
+        // leverage validation:
+        // (collateral + loaned_asset) / collateral <= order.leverage
+        uint256 collateralEquivalentInBaseAsset = _getEquivalentInBaseAsset(collateralAsset, _collateralAmount, order.baseAsset);
+        
+        uint256 leverage = (collateralEquivalentInBaseAsset + _amount) / collateralEquivalentInBaseAsset;
+        require(leverage <= MAX_UINT8);
+        require(uint8(leverage) <= order.leverage);
 
         address[] memory _assets;
         uint256[] memory _balances;
@@ -519,6 +532,10 @@ contract MarginModule {
     }
 
     /* Internal functions */
+
+    function _getEquivalentInBaseAsset(address asset, uint256 amount, address baseAsset) internal returns(uint256 baseAmount) {
+        return baseAmount;
+    }
 
 
     function _validateAsset(uint256 positionId, address asset, uint256 idInWhitelist) internal {
