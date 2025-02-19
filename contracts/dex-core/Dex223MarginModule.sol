@@ -85,6 +85,7 @@ contract MarginModule {
         uint256 paidDays;
         bool open;
         uint256 frozenTime;
+        address liquidator;
     }
 
     struct SwapCallbackData {
@@ -280,7 +281,8 @@ contract MarginModule {
             order.interestRate,
             0,
             true,
-            0);
+            0,
+            address(0));
 
         positions[positionIndex] = _newPosition;
 
@@ -494,15 +496,23 @@ contract MarginModule {
 
         if (position.frozenTime > 0) {
             require(position.frozenTime < block.timestamp);
+            uint256 constant frozenDuration = block.timestamp - position.frozenTime;
+            // On the first day after a position is frozen, only the party that initiated the freeze can liquidate it.
+            if (frozenDuration <= 1 days)
+                require(msg.sender == position.liquidator);
+            else
+                position.liquidator = msg.sender;
+
             _liquidate(positionId);
 
         } else if (subjectToLiquidation(positionId)) {
             position.frozenTime = block.timestamp;
+            position.liquidator = msg.sender;
         }
     }
 
     function _liquidate(uint256 positionId) internal {
-        
+ 
     }
 
     /* order owner privileges */
