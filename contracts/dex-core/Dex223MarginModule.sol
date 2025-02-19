@@ -50,7 +50,7 @@ contract MarginModule {
         uint256 interestRate;
         uint256 duration;
         address[] collateralAssets;
-        uint256[] minCollateralAmounts;
+        uint256 minLoan; // Protection of liquidation process from overload.
         address liquidationCollateral;
         uint256 liquidationCollateralAmount;
 
@@ -108,7 +108,7 @@ contract MarginModule {
         uint256 interestRate,
         uint256 duration,
         address[] calldata collateral,
-        uint256[] calldata minCollateralAmounts,
+        uint256 minLoan,
         address liquidationCollateral,
         uint256 liquidationCollateralAmount,
         address asset,
@@ -127,7 +127,7 @@ contract MarginModule {
             interestRate,
             duration,
             collateral,
-            minCollateralAmounts,
+            minLoan,
             liquidationCollateral,
             liquidationCollateralAmount,
             asset,
@@ -251,7 +251,7 @@ contract MarginModule {
         address collateralAsset = order.collateralAssets[_collateralIdx];
 
         require(collateralAsset != address(0));
-        require(order.minCollateralAmounts[_collateralIdx] <= _collateralAmount);
+        require(order.minLoan <= _amount);
         require(order.balance > _amount);
 
         // leverage validation:
