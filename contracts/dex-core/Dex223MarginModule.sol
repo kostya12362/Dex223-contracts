@@ -293,12 +293,11 @@ contract MarginModule {
 
         // Deposit the tokens (collateral).
 
-        uint256 _balance = IERC20Minimal(collateralAsset).balanceOf(address(this));
-        IERC20Minimal(collateralAsset).transferFrom(msg.sender, address(this), _collateralAmount);
-        require(IERC20Minimal(collateralAsset).balanceOf(address(this)) >= _balance + _collateralAmount);
+        //TODO: receive ETH
+        _receiveAsset(collateralAsset, _collateralAmount);
 
         //TODO: receive ETH
-        _receiveAsset(liquidationRewardAsset, liquidationRewardAmount);
+        _receiveAsset(order.liquidationRewardAsset, order.liquidationRewardAmount);
 
         // Make sure position is not subject to liquidation right after it was created.
         // Revert otherwise.
@@ -499,7 +498,7 @@ contract MarginModule {
 
         if (position.frozenTime > 0) {
             require(position.frozenTime < block.timestamp);
-            uint256 constant frozenDuration = block.timestamp - position.frozenTime;
+            uint256 frozenDuration = block.timestamp - position.frozenTime;
             // On the first day after a position is frozen, only the party that initiated the freeze can liquidate it.
             if (frozenDuration <= 1 days)
                 require(msg.sender == position.liquidator);
