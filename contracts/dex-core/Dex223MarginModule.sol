@@ -51,8 +51,8 @@ contract MarginModule {
         uint256 duration;
         address[] collateralAssets;
         uint256 minLoan; // Protection of liquidation process from overload.
-        address liquidationCollateral;
-        uint256 liquidationCollateralAmount;
+        address liquidationRewardAsset;
+        uint256 liquidationRewardAmount;
 
         address baseAsset;
         uint256 balance;
@@ -110,15 +110,15 @@ contract MarginModule {
         uint256 duration,
         address[] calldata collateral,
         uint256 minLoan,
-        address liquidationCollateral,
-        uint256 liquidationCollateralAmount,
+        address liquidationRewardAsset,
+        uint256 liquidationRewardAmount,
         address asset,
         uint16 currencyLimit,
         uint8 leverage
     ) public {
 
         require(isAssetLoanable[asset]);
-        require(isAssetPledgeable[liquidationCollateral]);
+        require(isAssetPledgeable[liquidationRewardAsset]);
         require(leverage > 1);
 
         Order memory _newOrder = Order(msg.sender,
@@ -129,8 +129,8 @@ contract MarginModule {
             duration,
             collateral,
             minLoan,
-            liquidationCollateral,
-            liquidationCollateralAmount,
+            liquidationRewardAsset,
+            liquidationRewardAmount,
             asset,
             0,
             0,
@@ -296,6 +296,9 @@ contract MarginModule {
         uint256 _balance = IERC20Minimal(collateralAsset).balanceOf(address(this));
         IERC20Minimal(collateralAsset).transferFrom(msg.sender, address(this), _collateralAmount);
         require(IERC20Minimal(collateralAsset).balanceOf(address(this)) >= _balance + _collateralAmount);
+
+        //TODO: receive ETH
+        _receiveAsset(liquidationRewardAsset, liquidationRewardAmount);
 
         // Make sure position is not subject to liquidation right after it was created.
         // Revert otherwise.
@@ -512,7 +515,14 @@ contract MarginModule {
     }
 
     function _liquidate(uint256 positionId) internal {
- 
+        Position storage position = positions[positionId];
+        Order storage order = orders[position.orderId];
+        bool success = true;
+
+        // TODO: sell assets logic
+        if (success) {
+            _sendAsset(order.liquidationRewardAsset, order.liquidationRewardAmount);
+        } 
     }
 
     /* order owner privileges */
