@@ -159,9 +159,7 @@ contract MarginModule {
         require(isOrderOpen(orderId));
         require(orders[orderId].baseAsset != address(0));
 
-        uint256 _balance = IERC20Minimal(orders[orderId].baseAsset).balanceOf(address(this));
-        IERC20Minimal(orders[orderId].baseAsset).transferFrom(msg.sender, address(this), amount);
-        require(IERC20Minimal(orders[orderId].baseAsset).balanceOf(address(this)) >= _balance + amount);
+        _receiveAsset(orders[orderId].baseAsset, amount);
         orders[orderId].balance += amount;
     }
 
@@ -173,10 +171,13 @@ contract MarginModule {
         require(orders[orderId].owner == msg.sender);
         // withdrawal is possible only when the order is closed
         require(!isOrderOpen(orderId));
-        require(orders[orderId].baseAsset != address(0));
         require(orders[orderId].balance >= amount);
 
-        IERC20Minimal(orders[orderId].baseAsset).transfer(msg.sender, amount);
+        if (orders[orderId].baseAsset == address(0)) {
+            _sendEth(amount);
+        } else {
+            _sendAsset(orders[orderId].baseAsset, amount);
+        }
         orders[orderId].balance -= amount;
 
     }
@@ -575,6 +576,11 @@ contract MarginModule {
         require(asset != address(0));
 
         IERC20Minimal(asset).transfer(msg.sender, amount);
+    }
+
+    function _sendEth(uint256 amount) internal {
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        require(success);
     }
 
     function _receiveAsset(address asset, uint256 amount) internal {
