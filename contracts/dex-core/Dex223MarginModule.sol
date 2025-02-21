@@ -55,6 +55,7 @@ contract MarginModule {
         uint256 liquidationRewardAmount;
 
         address baseAsset;
+        uint256 deadline;
         uint256 balance;
 
         uint8 state; // 0 - active
@@ -113,6 +114,7 @@ contract MarginModule {
         address liquidationRewardAsset,
         uint256 liquidationRewardAmount,
         address asset,
+        uint256 deadline,
         uint16 currencyLimit,
         uint8 leverage
     ) public {
@@ -132,6 +134,7 @@ contract MarginModule {
             liquidationRewardAsset,
             liquidationRewardAmount,
             asset,
+            deadline,
             0,
             0,
             currencyLimit,
@@ -163,12 +166,13 @@ contract MarginModule {
     }
 
     function isOrderOpen(uint256 id) public view returns(bool) {
-        return orders[id].state == 0;
+        return orders[id].state == 0 && orders[id].deadline < block.timestamp;
     }
 
     function orderWithdraw(uint256 orderId, uint256 amount) public {
         require(orders[orderId].owner == msg.sender);
-        require(isOrderOpen(orderId));
+        // withdrawal is possible only when the order is closed
+        require(!isOrderOpen(orderId));
         require(orders[orderId].baseAsset != address(0));
         require(orders[orderId].balance >= amount);
 
