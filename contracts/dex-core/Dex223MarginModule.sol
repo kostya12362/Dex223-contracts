@@ -196,13 +196,11 @@ contract MarginModule {
 
     }
 
-    function positionClose() public {
-
-    }
-
     function addAsset(uint256 _positionIndex, address _asset, uint256 _amount) internal {
         uint8 _idx = assetIds[_positionIndex][_asset];
         Position storage position = positions[_positionIndex];
+        require(position.open);
+
         address[] storage assets = position.assets;
         uint256[] storage balances = position.balances;
 
@@ -517,6 +515,14 @@ contract MarginModule {
             position.liquidator = msg.sender;
         }
     }
+
+    function positionClose(uint256 positionId) public {
+        Position storage position = positions[positionId];
+        require(position.owner == msg.sender);
+        require(position.open);
+        position.open = false;
+    }
+
 
     function _liquidate(uint256 positionId) internal {
         Position storage position = positions[positionId];
