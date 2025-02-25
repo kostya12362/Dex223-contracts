@@ -192,10 +192,6 @@ contract MarginModule {
         addAsset(positionId, asset, amount);
     }
 
-    function positionWithdraw() public {
-
-    }
-
     function addAsset(uint256 _positionIndex, address _asset, uint256 _amount) internal {
         uint8 _idx = assetIds[_positionIndex][_asset];
         Position storage position = positions[_positionIndex];
@@ -497,7 +493,7 @@ contract MarginModule {
     function liquidate(uint256 positionId) public {
         Position storage position = positions[positionId];
 
-        require(position.open);
+        require(position.open); // TODO: Or closed over than 24 hours ago
 
         if (position.frozenTime > 0) {
             require(position.frozenTime < block.timestamp);
@@ -520,9 +516,28 @@ contract MarginModule {
         Position storage position = positions[positionId];
         require(position.owner == msg.sender);
         require(position.open);
+        require(position.frozenTime == 0, "Position frozen");
         position.open = false;
+
+        // TODO: order payout
     }
 
+    function positionWithdraw(uint256 positionId, address asset) public {
+        Position storage position = positions[positionId];
+        require(position.owner == msg.sender);
+        require(!position.open, "Withdraw only from closed position");
+
+        uint8 idx = assetIds[positionId][asset];
+        require(idx > 0);
+        idx -= 1;
+
+        uint256[] storage balances = position.balances;
+        uint256 amount = balances[idx];
+
+        reduceAsset(positionId, asset, amount);
+        _sendAsset(asset, amount);
+        
+    }
 
     function _liquidate(uint256 positionId) internal {
         Position storage position = positions[positionId];
@@ -532,7 +547,9 @@ contract MarginModule {
         // TODO: sell assets logic
         if (success) {
             _sendAsset(order.liquidationRewardAsset, order.liquidationRewardAmount);
-        } 
+        }
+
+        position.open = false; 
     }
 
     /* order owner privileges */
