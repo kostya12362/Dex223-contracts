@@ -27,6 +27,7 @@ interface IDex223Pool {
 
 contract MarginModule {
     uint256 constant private MAX_UINT8 = 255;
+    uint256 constant private MAX_FREEZE_DURATION = 1 hours;
     IDex223Factory public factory;
     ISwapRouter public router;
 
@@ -498,13 +499,14 @@ contract MarginModule {
         if (position.frozenTime > 0) {
             require(position.frozenTime < block.timestamp);
             uint256 frozenDuration = block.timestamp - position.frozenTime;
-            // On the first day after a position is frozen, only the party that initiated the freeze can liquidate it.
-            if (frozenDuration <= 1 days)
+            // On the first hour after a position is frozen, only the party that initiated the freeze can liquidate it.
+            if (frozenDuration <= MAX_FREEZE_DURATION) {
                 require(msg.sender == position.liquidator);
-            else
-                position.liquidator = msg.sender;
-
-            _liquidate(positionId);
+                _liquidate(positionId);
+            } else {
+                position.frozenTime = 0;
+                position.liquidator = address(0);
+            }
 
         } else if (subjectToLiquidation(positionId)) {
             position.frozenTime = block.timestamp;
