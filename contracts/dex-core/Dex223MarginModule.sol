@@ -521,7 +521,10 @@ contract MarginModule {
         require(position.frozenTime == 0, "Position frozen");
         position.open = false;
 
-        // TODO: order payout
+        if (_paybackBaseAsset(positionId)) {
+        } else {
+            // TODO: order payout in non-base assets
+        }
     }
 
     function positionWithdraw(uint256 positionId, address asset) public {
@@ -581,6 +584,22 @@ contract MarginModule {
     }
 
     /* Internal functions */
+
+    function _paybackBaseAsset(uint256 positionId) internal returns(bool) {
+        Position storage position = positions[positionId];
+        uint256[] storage balances = position.balances;
+        address asset = position.baseAsset;
+        uint8 _idx = assetIds[positionId][asset];
+        // checking whether the base asset balance is sufficient to repay the loan
+        if (_idx >= 1 && balances[_idx-1] >= position.initialBalance) {
+            Order storage order = orders[position.orderId];
+
+            balances[_idx-1] -= position.initialBalance;
+            order.balance += position.initialBalance;
+            return true;
+        }
+        return false;
+    }
 
     function _getEquivalentInBaseAsset(address asset, uint256 amount, address baseAsset) internal returns(uint256 baseAmount) {
         return baseAmount;
