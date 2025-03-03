@@ -521,8 +521,8 @@ contract MarginModule {
         require(position.frozenTime == 0, "Position frozen");
         position.open = false;
 
-        if (_paybackBaseAsset(positionId)) {
-        } else {
+        bool isBaseAssetReturned = _paybackBaseAsset(positionId);
+        if (!isBaseAssetReturned) {
             // TODO: order payout in non-base assets
         }
     }
@@ -549,7 +549,11 @@ contract MarginModule {
         Order storage order = orders[position.orderId];
         bool success = true;
 
-        // TODO: sell assets logic
+        bool isBaseAssetReturned = _paybackBaseAsset(positionId);
+        if (!isBaseAssetReturned) {
+            // TODO: order payout in non-base assets
+        }
+
         if (success) {
             _sendAsset(order.liquidationRewardAsset, order.liquidationRewardAmount);
         }
