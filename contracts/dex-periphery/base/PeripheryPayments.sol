@@ -82,6 +82,8 @@ abstract contract PeripheryPayments is IPeripheryPayments, PeripheryImmutableSta
     }
 
     /// @inheritdoc IPeripheryPayments
+    /*  Removed due to inconsistency with ERC-223 workflow
+    
     function sweepToken(
         address token,
         uint256 amountMinimum,
@@ -94,6 +96,7 @@ abstract contract PeripheryPayments is IPeripheryPayments, PeripheryImmutableSta
             TransferHelper.safeTransfer(token, recipient, balanceToken);
         }
     }
+    */
 
     /// @inheritdoc IPeripheryPayments
     function refundETH() external payable override {
