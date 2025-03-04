@@ -463,7 +463,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         if (success) {
             (amount0, amount1) = abi.decode(retdata, (int256, int256));
         } else {
-            uint256 val = abi.decode(retdata, (uint256));
+            string memory val = abi.decode(retdata, (string));
             assembly {
                 let ptr := mload(0x40)
                 mstore(ptr, val)
