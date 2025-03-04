@@ -476,7 +476,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
 //        require(msg.sender == WETH9, 'Not WETH9');
     }
     
-    function unwrapWETH9(address recipient, address WETH9, uint256 amountOut) public lock payable { 
+    function unwrapWETH9(address recipient, address WETH9, uint256 amountOut) private lock { 
         uint256 balanceWETH9 = IWETH9(WETH9).balanceOf(address(this));
         require(balanceWETH9 >= amountOut, 'Insufficient WETH9');
 
