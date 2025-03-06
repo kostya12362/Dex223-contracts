@@ -89,6 +89,8 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
     /// @inheritdoc IUniswapV3PoolState
     Slot0 public override slot0;
 
+    bool public erc223ReentrancyLock = false; // Additional reentrancy safeguard specific for ERC-223 token deposit that invoke functions.
+
     /// @inheritdoc IUniswapV3PoolState
     uint256 public override feeGrowthGlobal0X128;
     /// @inheritdoc IUniswapV3PoolState
@@ -187,7 +189,6 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
  */
     function tokenReceived(address _from, uint _value, bytes memory _data) public returns (bytes4)
     {
-        // TODO: Reentrancy safety checks.
         swap_sender = _from;
         erc223deposit[_from][msg.sender] += _value;   // add token to user balance
         if (_data.length != 0) {
@@ -198,7 +199,15 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
                 swap(data.recipient, data.zeroForOne, data.amountSpecified, data.sqrtPriceLimitX96, data.data);
             }
         */
+
+            require(!erc223ReentrancyLock); // Specific reentrancy protection for ERC-223 deposits
+                                            // that enables only one consequent call of the .delegatecall(_data).
+            erc223ReentrancyLock = true;
+
             (bool success, bytes memory _data_) = address(this).delegatecall(_data);
+
+            erc223ReentrancyLock = false; // After the delegatecall completed reset the ERC-223 reentrancy status.
+
             delete(_data);
             require(success, "23F");
         }
