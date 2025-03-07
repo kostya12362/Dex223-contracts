@@ -189,10 +189,15 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
  */
     function tokenReceived(address _from, uint _value, bytes memory _data) public returns (bytes4)
     {
+        require(!erc223ReentrancyLock); // Specific reentrancy protection for ERC-223 deposits
+        erc223ReentrancyLock = true;
+        
         swap_sender = _from;
         erc223deposit[_from][msg.sender] += _value;   // add token to user balance
         if (_data.length != 0) {
-        /*
+
+        /*  Signature checking is not implemented in this version for gas optimization reasons.
+
             SwapParams memory data = abi.decode(_data, (SwapParams));
             if(data.sig == this.swap.selector)
             {
@@ -200,13 +205,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
             }
         */
 
-            require(!erc223ReentrancyLock); // Specific reentrancy protection for ERC-223 deposits
-                                            // that enables only one consequent call of the .delegatecall(_data).
-            erc223ReentrancyLock = true;
-
             (bool success, bytes memory _data_) = address(this).delegatecall(_data);
-
-            erc223ReentrancyLock = false; // After the delegatecall completed reset the ERC-223 reentrancy status.
 
             delete(_data);
             require(success, "23F");
@@ -214,15 +213,17 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
 
         // WARNING! Leaving tokens on the Pool's balance makes them vulnerable to arbitrage,
         //          tokens must be extracted after the execution of the logic following the deposit.
+        /*
+         * Auto-refund logic was retracted for security reasons.
 
-        ////  Commented for testing purposes.
-        // TODO: Auto-extract excess of deposited ERC-223 tokens after the main logic of the func.
-        // TODO: uncommented for auto tests to work properly
         if (erc223deposit[_from][msg.sender] != 0) {
             TransferHelper.safeTransfer(msg.sender, _from, erc223deposit[_from][msg.sender]);
             erc223deposit[_from][msg.sender] = 0;
-	}
+	    }
+        */ 
 
+
+        erc223ReentrancyLock = false;
         swap_sender = address(0);
         return 0x8943ec02;
     }
@@ -488,6 +489,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
     function unwrapWETH9(address recipient, address WETH9, uint256 amountOut) private lock { 
         uint256 balanceWETH9 = IWETH9(WETH9).balanceOf(address(this));
         require(balanceWETH9 >= amountOut, 'Insufficient WETH9');
+        require(msg.sender != address(this));
 
         if (balanceWETH9 > 0) {
             IWETH9(WETH9).withdraw(amountOut);
