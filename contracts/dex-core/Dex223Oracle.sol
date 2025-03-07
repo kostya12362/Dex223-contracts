@@ -17,6 +17,20 @@ contract Oracle {
         // calculation of the average tick over a period of time.
         int56 tickDifference = tickCumulatives[1] - tickCumulatives[0];
         int56 averageTick = tickDifference / int56(int32(secondsAgo));
-        
+
+        priceX96 = TickMath.getSqrtRatioAtTick(averageTick);
+    }
+
+    function getPrice(uint32 secondsAgo, uint8 decimalsToken0, uint8 decimalsToken1) external view returns (uint256 price) {
+        uint256 sqrtPriceX128 = getTwap(secondsAgo);
+        uint256 priceX192 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, 1 << 64);
+
+        if (decimalsToken0 >= decimalsToken1) {
+            uint256 decimalsFactor = 10 ** (decimalsToken0 - decimalsToken1);
+            price = FullMath.mulDiv(priceX192, decimalsFactor, 1 << 128);
+        } else {
+            uint256 decimalsFactor = 10 ** (decimalsToken1 - decimalsToken0);
+            price = FullMath.mulDiv(priceX192, 1, decimalsFactor << 128);
+        }
     }
 }
