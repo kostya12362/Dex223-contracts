@@ -179,7 +179,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
 
                 // Check if converter identifies the ERC-223 wrapper
                 // as a wrapper for our exact ERC-20 _token.
-                require((converter.getERC20OriginFor(_token223) == _token) || converter.predictWrapperAddress(_token223, false) == _token); 
+                require(converter.getERC20OriginFor(_token223) == _token); 
 
                 return; // All checks passed for scenario 1.
             }

@@ -250,6 +250,13 @@ IERC223Recipient
         bool tokenNotExist = (success && resdata.length == 0);
         
         uint256 balance1before = tokenNotExist ? 0 : abi.decode(resdata, (uint));
+
+        require(call_sender != address(0));             // Make sure this function is executed within `tokenReceived`.
+        _erc223Deposits[call_sender][msg.sender] -= amountIn; // Subtract the amount of tokens that we are going to transfer
+                                                              // from the users balance for safety reasons.
+                                                              // `msg.sender` is the address of the contract here because this function
+                                                              // is called within `tokenReceived`
+                                                              // `call_sender` is the sender of the token.
         require(IERC223(token_sender).transfer(swapData.pool, amountIn, _data));
 
         return uint256(IERC20(_tokenOut).balanceOf(recipient) - balance1before);
