@@ -482,6 +482,16 @@ contract MarginModule {
         reduceAsset(_positionId, _asset1, _amount);
     }
 
+
+
+        // @Dexaran 
+        // Add liquidation criteria checks.
+        // A position must be subject to liquidation once the amount of funds currently available is less-than-equal
+        // than the amount of funds expected at the moment of the position check.
+        // Example: if $10,000 loan was taken at 30% per 30 days and we are checking the state of this position 
+        //          at 15th day then we expect it to have a cumulative balance of $11,500 at the moment of the check.
+
+        // Price must be taken from the price source specified by the order owner.
     function subjectToLiquidation(uint256 positionId) public view returns (bool) {
         Position storage position = positions[positionId];
         if (position.deadline <= block.timestamp) {
