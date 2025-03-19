@@ -68,6 +68,8 @@ contract Dex223PoolLib {
     }
     Slot0 public  slot0;
 
+    bool public erc223ReentrancyLock = false;
+
     uint256 public  feeGrowthGlobal0X128;
     uint256 public  feeGrowthGlobal1X128;
 
