@@ -200,6 +200,12 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
             delete(_data);
             require(success, "23F");
         }
+        
+        // Auto-refund of any remaining ERC-223 tokens.
+        if (erc223deposit[_from][msg.sender] != 0) {
+            TransferHelper.safeTransfer(msg.sender, _from, erc223deposit[_from][msg.sender]);
+            erc223deposit[_from][msg.sender] = 0;
+	    }
 
         erc223ReentrancyLock = false;
         swap_sender = address(0);
