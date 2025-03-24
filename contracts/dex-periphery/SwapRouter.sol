@@ -247,7 +247,9 @@ IERC223Recipient
 
         (bool success, bytes memory resdata) = _tokenOut.call(abi.encodeWithSelector(IERC20.balanceOf.selector, recipient));
 
-        bool tokenNotExist = (success && resdata.length == 0);
+        uint256 _tokenCodeSize;
+        assembly { _tokenCodeSize := extcodesize(_tokenOut) }
+        bool tokenNotExist = _tokenCodeSize == 0 || !success || resdata.length != 0;
         
         uint256 balance1before = tokenNotExist ? 0 : abi.decode(resdata, (uint));
 
