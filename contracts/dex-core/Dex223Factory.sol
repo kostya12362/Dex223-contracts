@@ -23,7 +23,6 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
     address public tokenReceivedCaller;
 
     ITokenStandardConverter public converter;
-    //ITokenStandardConverter converter = ITokenStandardConverter(0x08b9DfA96d4997b460dFEb1aBb994a7279dDb420);
 
     // @inheritdoc IUniswapV3Factory
     mapping(uint24 => int24) public override feeAmountTickSpacing;
