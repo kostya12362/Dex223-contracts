@@ -1,3 +1,7 @@
+/**
+ *Submitted for verification at Etherscan.io on 2024-10-16
+*/
+
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity =0.7.6;
 pragma abicoder v2;
@@ -210,7 +214,7 @@ contract Dex223AutoListing {
         return (listed_tokens[_token] != 0);
     }
 
-    function list(address pool, uint24 feeTier, address paymentToken) public payable 
+    function list(address pool, uint24 feeTier, address paymentToken) public payable // NOTE not supported payment in ETH
     {
         uint price = checkListingCriteria(paymentToken);
 //        require(price >= 0); // if price < 0 - listing criteria not met
