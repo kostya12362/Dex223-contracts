@@ -249,7 +249,7 @@ IERC223Recipient
 
         uint256 _tokenCodeSize;
         assembly { _tokenCodeSize := extcodesize(_tokenOut) }
-        bool tokenNotExist = _tokenCodeSize == 0 || !success || resdata.length != 0;
+        bool tokenNotExist = _tokenCodeSize == 0 || !success || resdata.length != 32;
         
         uint256 balance1before = tokenNotExist ? 0 : abi.decode(resdata, (uint));
 
