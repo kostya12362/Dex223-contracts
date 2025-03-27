@@ -109,7 +109,7 @@ IERC223Recipient
         address _WETH9 //,
 //        address _library//,
     /* address _tokenDescriptor_ */
-    ) ERC721Permit('Uniswap V3 Positions NFT-V1', 'UNI-V3-POS', '1') PeripheryImmutableState(_factory, _WETH9) {
+    ) ERC721Permit('Dex223 Positions NFT', 'DEX223-POS', '1') PeripheryImmutableState(_factory, _WETH9) {
         // _tokenDescriptor = _tokenDescriptor_; removed during testing
 //        pool_lib = _library;
     }
