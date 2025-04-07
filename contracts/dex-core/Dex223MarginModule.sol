@@ -9,6 +9,7 @@ import '../interfaces/IERC20Minimal.sol';
 import '../interfaces/ISwapRouter.sol';
 import '../libraries/TickMath.sol';
 import '../tokens/interfaces/IERC223.sol';
+import './Dex223Oracle.sol';
 
 interface IDex223Pool {
     function token0() external view returns (address, address);
@@ -28,8 +29,10 @@ interface IDex223Pool {
 contract MarginModule {
     uint256 constant private MAX_UINT8 = 255;
     uint256 constant private MAX_FREEZE_DURATION = 1 hours;
+    uint256 constant private INTEREST_RATE_PRECISION = 10000; 
     IDex223Factory public factory;
     ISwapRouter public router;
+    Oracle public oracle;
 
     mapping (uint256 => Order)    public orders;
     mapping (uint256 => Position) public positions;
@@ -45,6 +48,7 @@ contract MarginModule {
         uint256 id;
         address[] whitelistedTokens;
         address whitelistedTokenList;
+	// interestRate equal 55 means 0,55% or interestRate equal 3500 means 35%
         uint256 interestRate;
         uint256 duration;
         address[] collateralAssets;
@@ -87,9 +91,10 @@ contract MarginModule {
         address payer;
     }
 
-    constructor(address _factory, address _router) {
+    constructor(address _factory, address _router, address _oracle) {
         factory = IDex223Factory(_factory);
         router = ISwapRouter(_router);
+	oracle = Oracle(oracle);
     }
 
     function createOrder(address[] memory tokens,
@@ -479,8 +484,33 @@ contract MarginModule {
         if (position.deadline <= block.timestamp) {
             return true;
         }
-        // TODO: another check for a sufficient amount of funds in the position
-        return false;
+
+	uint256 elapsedTime = block.timestamp - position.createdAt;
+	uint256 elapsedDays = elapsedTime / 1 days;
+
+	Order storage order = orders[position.orderId];
+	uint256 requiredAmount = position.initialBalance;
+        requiredAmount += (position.initialBalance * order.interestRate * elapsedDays) / 30;
+	requiredAmount = requiredAmount / INTEREST_RATE_PRECISION;
+
+	uint256 totalValueInBaseAsset = 0;
+
+	for (uint256 i = 0; i < position.assets.length; i++) {
+	    address asset = position.assets[i];
+	    uint256 balance = position.balances[i];
+
+	    if (asset == position.baseAsset) {
+	    	totalValueInBaseAsset += balance;
+	    } else {
+		(address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, position.baseAsset);
+
+		uint256 price = oracle.getPrice(poolAddress);
+
+		totalValueInBaseAsset += balance * price;
+	    }
+	}
+
+        return totalValueInBaseAsset < requiredAmount;
     }
 
     function liquidate(uint256 positionId) public {
