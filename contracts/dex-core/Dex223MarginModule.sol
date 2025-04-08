@@ -598,7 +598,7 @@ contract MarginModule {
         if (success) {
 	    // Payment of liquidation reward
 	    // (reward asset is the same as the base asset)
-	    if (order.baseAsset == address(0) {
+	    if (order.baseAsset == address(0)) {
 		_sendEth(order.liquidationRewardAmount);
 	    } else {
                 _sendAsset(order.baseAsset, order.liquidationRewardAmount);
