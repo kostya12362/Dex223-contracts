@@ -230,14 +230,15 @@ contract MarginModule {
         assetIds[_positionIndex][lastAsset] = _idx;
     }
 
-    function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public {
+    function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public payable {
 
         require(isOrderOpen(_orderId));
 
         Order storage order = orders[_orderId];
+
+        require(_collateralIdx < order.collateralAssets.length);
         address collateralAsset = order.collateralAssets[_collateralIdx];
 
-        require(collateralAsset != address(0));
         require(order.minLoan <= _amount);
         require(order.balance > _amount);
 
@@ -277,14 +278,28 @@ contract MarginModule {
 
         addAsset(positionIndex, collateralAsset, _collateralAmount);
 
-        // Deposit the tokens (collateral).
+        uint256 receivedEth = msg.value;
 
-        //TODO: receive ETH
-        _receiveAsset(collateralAsset, _collateralAmount);
+        // Deposit collateral
+	// In case the collateral asset is Ether
+	if (collateralAsset == address(0)) {
+	    require(receivedEth >= _collateralAmount);
+	    receivedEth -= _collateralAmount;
+	// or ERC-20
+	} else {
+            _receiveAsset(collateralAsset, _collateralAmount);
+	}
 
-        //TODO: receive ETH
-	// liquidationRewardAsset is the same as baseAsset
-        _receiveAsset(order.baseAsset, order.liquidationRewardAmount);
+	// Deposit the liquidation reward
+	// In case the reward asset is Ether
+	// (reward asset is the same as the base asset)
+	if (order.baseAsset == address(0)) {
+	    require(receivedEth >= order.liquidationRewardAmount);
+	    receivedEth -= order.liquidationRewardAmount;
+	// or ERC-20
+	} else {
+	    _receiveAsset(order.baseAsset, order.liquidationRewardAmount);
+	}
 
         // Make sure position is not subject to liquidation right after it was created.
         // Revert otherwise.
@@ -581,8 +596,13 @@ contract MarginModule {
         }
 
         if (success) {
-            // liquidationRewardAsset is the same as baseAsset
-            _sendAsset(order.baseAsset, order.liquidationRewardAmount);
+	    // Payment of liquidation reward
+	    // (reward asset is the same as the base asset)
+	    if (order.baseAsset == address(0) {
+		_sendEth(order.liquidationRewardAmount);
+	    } else {
+                _sendAsset(order.baseAsset, order.liquidationRewardAmount);
+	    }
         }
 
         position.open = false; 
@@ -619,6 +639,7 @@ contract MarginModule {
     function _paybackBaseAsset(uint256 positionId) internal returns(bool) {
         Position storage position = positions[positionId];
         uint256[] storage balances = position.balances;
+
         address asset = position.baseAsset;
         uint8 _idx = assetIds[positionId][asset];
         // checking whether the base asset balance is sufficient to repay the loan
