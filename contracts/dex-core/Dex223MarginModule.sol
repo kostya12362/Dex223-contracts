@@ -481,9 +481,6 @@ contract MarginModule {
         // Price must be taken from the price source specified by the order owner.
     function subjectToLiquidation(uint256 positionId) public view returns (bool) {
         Position storage position = positions[positionId];
-        if (position.deadline <= block.timestamp) {
-            return true;
-        }
 
 	uint256 elapsedTime = block.timestamp - position.createdAt;
 	uint256 elapsedDays = elapsedTime / 1 days;
@@ -538,8 +535,15 @@ contract MarginModule {
 
     function positionClose(uint256 positionId) public {
         Position storage position = positions[positionId];
-        require(position.owner == msg.sender);
+        Order storage order = orders[position.orderId];
         require(position.open);
+
+	// Only position owner can close, or order owner after deadline
+	if (msg.sender != position.owner) {
+	    bool isExpired = position.deadline <= block.timestamp;
+            require(isExpired && msg.sender == order.owner);
+	}
+
         require(position.frozenTime == 0, "Position frozen");
         position.open = false;
 
