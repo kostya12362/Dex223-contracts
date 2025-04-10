@@ -638,15 +638,14 @@ contract MarginModule {
 
     function _paybackBaseAsset(uint256 positionId) internal returns(bool) {
         Position storage position = positions[positionId];
-        uint256[] storage balances = position.balances;
+	// baseAsset is always at index 0 in the assets array
+        uint256 baseBalance = position.balances[0];
 
-        address asset = position.baseAsset;
-        uint8 _idx = assetIds[positionId][asset];
         // checking whether the base asset balance is sufficient to repay the loan
-        if (_idx >= 1 && balances[_idx-1] >= position.initialBalance) {
+        if (baseBalance >= position.initialBalance) {
             Order storage order = orders[position.orderId];
 
-            balances[_idx-1] -= position.initialBalance;
+            position.balances[0] -= position.initialBalance;
             order.balance += position.initialBalance;
             return true;
         }
