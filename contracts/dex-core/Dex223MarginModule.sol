@@ -497,13 +497,7 @@ contract MarginModule {
     function subjectToLiquidation(uint256 positionId) public view returns (bool) {
         Position storage position = positions[positionId];
 
-	uint256 elapsedTime = block.timestamp - position.createdAt;
-	uint256 elapsedDays = elapsedTime / 1 days;
-
-	Order storage order = orders[position.orderId];
-	uint256 requiredAmount = position.initialBalance;
-        requiredAmount += (position.initialBalance * order.interestRate * elapsedDays) / 30;
-	requiredAmount = requiredAmount / INTEREST_RATE_PRECISION;
+	uint256 requiredAmount = calculateDebtAmount(position);
 
 	uint256 totalValueInBaseAsset = 0;
 
@@ -523,6 +517,19 @@ contract MarginModule {
 	}
 
         return totalValueInBaseAsset < requiredAmount;
+    }
+
+    // The borrower must repay both the principal amount and the accrued interest.
+    function calculateDebtAmount(Position storage position) internal view returns (uint256) {
+	uint256 elapsedTime = block.timestamp - position.createdAt;
+	uint256 elapsedDays = elapsedTime / 1 days;
+
+	Order storage order = orders[position.orderId];
+	uint256 requiredAmount = position.initialBalance;
+        requiredAmount += (position.initialBalance * order.interestRate * elapsedDays) / 30;
+	requiredAmount = requiredAmount / INTEREST_RATE_PRECISION;
+
+	return requiredAmount;
     }
 
     function liquidate(uint256 positionId) public {
@@ -562,8 +569,8 @@ contract MarginModule {
         require(position.frozenTime == 0, "Position frozen");
         position.open = false;
 
-        bool isBaseAssetReturned = _paybackBaseAsset(positionId);
-        if (!isBaseAssetReturned) {
+        uint256 requiredAmount = _paybackBaseAsset(position);
+        if (requiredAmount > 0) {
             // TODO: order payout in non-base assets
         }
     }
@@ -590,8 +597,8 @@ contract MarginModule {
         Order storage order = orders[position.orderId];
         bool success = true;
 
-        bool isBaseAssetReturned = _paybackBaseAsset(positionId);
-        if (!isBaseAssetReturned) {
+        uint256 requiredAmount = _paybackBaseAsset(position);
+        if (requiredAmount > 0) {
             // TODO: order payout in non-base assets
         }
 
@@ -636,20 +643,25 @@ contract MarginModule {
 
     /* Internal functions */
 
-    function _paybackBaseAsset(uint256 positionId) internal returns(bool) {
-        Position storage position = positions[positionId];
+    function _paybackBaseAsset(Position storage position) internal returns(uint256) {
 	// baseAsset is always at index 0 in the assets array
         uint256 baseBalance = position.balances[0];
+	uint256 requiredAmount = calculateDebtAmount(position);
+
+        Order storage order = orders[position.orderId];
 
         // checking whether the base asset balance is sufficient to repay the loan
-        if (baseBalance >= position.initialBalance) {
-            Order storage order = orders[position.orderId];
+        if (baseBalance >= requiredAmount) {
 
-            position.balances[0] -= position.initialBalance;
-            order.balance += position.initialBalance;
-            return true;
-        }
-        return false;
+            position.balances[0] -= requiredAmount;
+            order.balance += requiredAmount;
+            requiredAmount = 0;
+        } else {
+	    position.balances[0] = 0;
+	    order.balance += baseBalance;
+	    requiredAmount -= baseBalance;
+	}
+        return requiredAmount;
     }
 
     function _getEquivalentInBaseAsset(address asset, uint256 amount, address baseAsset) internal returns(uint256 baseAmount) {
