@@ -36,7 +36,6 @@ contract MarginModule {
 
     mapping (uint256 => Order)    public orders;
     mapping (uint256 => Position) public positions;
-    mapping (uint256 => mapping (address => uint8)) assetIds;
 
     uint256 orderIndex;
     uint256 positionIndex;
@@ -76,7 +75,6 @@ contract MarginModule {
         uint256 deadline;
         uint256 createdAt;
 
-        address baseAsset;
         uint256 initialBalance;
         uint256 interest;
 
@@ -179,55 +177,69 @@ contract MarginModule {
         addAsset(positionId, asset, amount);
     }
 
+    function getAssetId(uint256 positionId, address asset) public view returns (uint256) {
+        address[] storage assets = positions[positionId].assets;
+
+	for (uint256 i = 0; i < assets.length; i++) {
+            if (assets[i] == asset) return i;
+        }
+        return assets.length;
+    }
+
     function addAsset(uint256 _positionIndex, address _asset, uint256 _amount) internal {
-        uint8 _idx = assetIds[_positionIndex][_asset];
         Position storage position = positions[_positionIndex];
         require(position.open);
 
         address[] storage assets = position.assets;
         uint256[] storage balances = position.balances;
 
-        if (_idx > 0) {
-            balances[_idx-1] += _amount;
+	// base asset
+        if (assets[0] == _asset) {
+	    balances[0] += _amount;
+	} else {
+            uint256 id = getAssetId(_positionIndex, _asset);
+            if (id < assets.length) {
+                balances[id] += _amount;
+            } else {
+                require(checkCurrencyLimit(_positionIndex));
+                require(_amount > 0);
 
-        } else {
-            require(checkCurrencyLimit(_positionIndex));
-            require(_amount > 0);
+                assets.push(_asset);
+                balances.push(_amount);
+            }
+	}
 
-            assets.push(_asset);
-            balances.push(_amount);
-            assetIds[_positionIndex][_asset] = uint8(assets.length);
-        }
     }
 
     function reduceAsset(uint256 _positionIndex, address _asset, uint256 _amount) internal {
-        uint8 _idx = assetIds[_positionIndex][_asset];
+        uint8 id = getAssetId(_positionIndex, _asset);
         Position storage position = positions[_positionIndex];
         address[] storage assets = position.assets;
         uint256[] storage balances = position.balances;
 
-        require(_idx > 0);
-        require(balances[_idx-1] >= _amount);
+        require(id < assets.length);
+        require(balances[id] >= _amount);
 
-        balances[_idx-1] -= _amount;
+        balances[id] -= _amount;
 
-        if (balances[_idx-1] == 0) {
-            removeAsset(_positionIndex, _asset, _idx);
+        if (balances[id] == 0) {
+            removeAsset(_positionIndex, _asset, id);
         }
     }
 
     function removeAsset(uint256 _positionIndex, address _asset, uint8 _idx) internal {
+        // base asset is not deleted, even if it is empty
+        if (_idx == 0) return;
+
         Position storage position = positions[_positionIndex];
         address[] storage assets = position.assets;
         uint256[] storage balances = position.balances;
+        uint256 lastId = assets.length - 1;
 
-        address lastAsset = assets[assets.length - 1];
-        assets[_idx-1] = lastAsset;
+        assets[_idx] = assets[lastId];
         assets.pop();
-        balances[_idx-1] = balances[balances.length - 1];
+        balances[_idx] = balances[lastId];
         balances.pop();
-        assetIds[_positionIndex][_asset] = 0;
-        assetIds[_positionIndex][lastAsset] = _idx;
     }
 
     function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public payable {
@@ -263,7 +275,6 @@ contract MarginModule {
 
             order.duration,
             block.timestamp,
-            order.baseAsset,
             _amount,
             order.interestRate,
             0,
@@ -499,21 +510,16 @@ contract MarginModule {
 
 	uint256 requiredAmount = calculateDebtAmount(position);
 
-	uint256 totalValueInBaseAsset = 0;
+        // base asset(at index 0) balance
+	uint256 totalValueInBaseAsset = position.balances[0];
 
-	for (uint256 i = 0; i < position.assets.length; i++) {
+	for (uint256 i = 1; i < position.assets.length; i++) {
 	    address asset = position.assets[i];
 	    uint256 balance = position.balances[i];
 
-	    if (asset == position.baseAsset) {
-	    	totalValueInBaseAsset += balance;
-	    } else {
-		(address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, position.baseAsset);
-
-		uint256 price = oracle.getPrice(poolAddress);
-
-		totalValueInBaseAsset += balance * price;
-	    }
+	    (address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, position.assets[0]);
+            uint256 price = oracle.getPrice(poolAddress);
+	    totalValueInBaseAsset += balance * price;
 	}
 
         return totalValueInBaseAsset < requiredAmount;
@@ -580,16 +586,14 @@ contract MarginModule {
         require(position.owner == msg.sender);
         require(!position.open, "Withdraw only from closed position");
 
-        uint8 idx = assetIds[positionId][asset];
-        require(idx > 0);
-        idx -= 1;
+        uint8 id = getAssetId(positionId, asset);
+        require(id < position.assets.length);
 
         uint256[] storage balances = position.balances;
-        uint256 amount = balances[idx];
+        uint256 amount = balances[id];
 
         reduceAsset(positionId, asset, amount);
         _sendAsset(asset, amount);
-        
     }
 
     function _liquidate(uint256 positionId) internal {
