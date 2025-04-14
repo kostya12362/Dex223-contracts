@@ -599,8 +599,20 @@ contract MarginModule {
 
         uint256 requiredAmount = _paybackBaseAsset(position);
         if (requiredAmount > 0) {
+
             // TODO: order payout in non-base assets
+	    // Start i is 1, because 0 is base asset.
+            for (uint256 i = 1; i < position.assets.length; i++) {
+                address asset = position.assets[i];
+		uint256 balance = position.balances[i];
+		(address pool,, uint24 fee) = oracle.findPoolWithHighestLiquidity(asset, order.baseAsset);
+		require(IERC20Minimal(asset).transfer(pool, balance));
+                marginSwap(positionId, i, 0, 0, balance, order.baseAsset, fee);
+	    }
         }
+
+	// after swapping all assets into the base asset, re-sent it to close the remaining debt.
+        requiredAmount = _paybackBaseAsset(position);
 
         if (success) {
 	    // Payment of liquidation reward
