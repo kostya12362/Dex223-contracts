@@ -36,6 +36,7 @@ contract MarginModule {
 
     mapping (uint256 => Order)    public orders;
     mapping (uint256 => Position) public positions;
+    mapping (address => mapping(address => uint256)) public erc223deposit;
 
     uint256 orderIndex;
     uint256 positionIndex;
@@ -708,14 +709,37 @@ contract MarginModule {
 
     function _receiveAsset(address asset, uint256 amount) internal {
         require(asset != address(0));
+        
+        // erc223
+        if (erc223deposit[msg.sender][asset] > 0) {
+            require(erc223deposit[msg.sender][asset] >= amount);
+            erc223deposit[msg.sender][asset] -= amount;
 
-        uint256 balance = IERC20Minimal(asset).balanceOf(address(this));
-        IERC20Minimal(asset).transferFrom(msg.sender, address(this), amount);
-        require(IERC20Minimal(asset).balanceOf(address(this)) >= balance + amount);
+        // erc20
+        } else {
+            uint256 balance = IERC20Minimal(asset).balanceOf(address(this));
+            IERC20Minimal(asset).transferFrom(msg.sender, address(this), amount);
+            require(IERC20Minimal(asset).balanceOf(address(this)) >= balance + amount);
+        }
     }
 
     function checkCurrencyLimit(uint256 _positionId) internal view returns (bool) {
         return positions[_positionId].assets.length + 1 <= orders[positions[_positionId].orderId].currencyLimit;
+    }
+
+    function tokenReceived(address user, uint256 value, bytes memory data) public returns (bytes4) {
+        address asset = msg.sender;
+        erc223deposit[user][asset] += _value;
+        
+        return 0x8943ec02;
+    }
+
+    function withdraw223(address asset) public {
+        uint256 amount = erc223deposit[msg.sender][asset]; 
+        require(amount > 0);
+
+        erc223deposit[msg.sender][asset] = 0;
+        require(IERC223(asset).transfer(msg.sender, amount));
     }
 
 }
