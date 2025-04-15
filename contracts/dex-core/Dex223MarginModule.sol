@@ -212,7 +212,7 @@ contract MarginModule {
     }
 
     function reduceAsset(uint256 _positionIndex, address _asset, uint256 _amount) internal {
-        uint8 id = getAssetId(_positionIndex, _asset);
+        uint256 id = getAssetId(_positionIndex, _asset);
         Position storage position = positions[_positionIndex];
         address[] storage assets = position.assets;
         uint256[] storage balances = position.balances;
@@ -227,7 +227,7 @@ contract MarginModule {
         }
     }
 
-    function removeAsset(uint256 _positionIndex, address _asset, uint8 _idx) internal {
+    function removeAsset(uint256 _positionIndex, address _asset, uint256 _idx) internal {
         // base asset is not deleted, even if it is empty
         if (_idx == 0) return;
 
@@ -586,7 +586,7 @@ contract MarginModule {
         require(position.owner == msg.sender);
         require(!position.open, "Withdraw only from closed position");
 
-        uint8 id = getAssetId(positionId, asset);
+        uint256 id = getAssetId(positionId, asset);
         require(id < position.assets.length);
 
         uint256[] storage balances = position.balances;
