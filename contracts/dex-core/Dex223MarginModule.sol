@@ -729,7 +729,7 @@ contract MarginModule {
 
     function tokenReceived(address user, uint256 value, bytes memory data) public returns (bytes4) {
         address asset = msg.sender;
-        erc223deposit[user][asset] += _value;
+        erc223deposit[user][asset] += value;
         
         return 0x8943ec02;
     }
