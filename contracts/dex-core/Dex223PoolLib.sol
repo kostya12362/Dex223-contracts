@@ -13,6 +13,7 @@ import '../libraries/SqrtPriceMath.sol';
 import '../libraries/Position.sol';
 import '../libraries/LowGasSafeMath.sol';
 import '../libraries/SafeCast.sol';
+import '../libraries/SafeERC20Limited.sol';
 import '../libraries/Tick.sol';
 import '../libraries/TickBitmap.sol';
 import '../libraries/Oracle.sol';
@@ -398,7 +399,8 @@ contract Dex223PoolLib {
                 // This approval is expected to execute once and forever.
                 if(IERC20Minimal(_token20).allowance(address(this), address(converter)) < _amount)
                 {
-                    IERC20Minimal(_token20).approve(address(converter), 2**256-1);
+                    //IERC20Minimal(_token20).approve(address(converter), 2**256-1);
+                    SafeERC20.safeIncreaseAllowance(IERC20Minimal(_token20), address(converter), 2**256 - 1);
                 }
                 converter.convertERC20(_token20, _amount - _balance);
             }
