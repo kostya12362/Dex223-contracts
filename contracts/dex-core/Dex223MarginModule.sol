@@ -41,7 +41,63 @@ contract MarginModule {
     uint256 orderIndex;
     uint256 positionIndex;
 
-    event NewOrder(address asset, uint256 orderID);
+    event OrderCreated(
+        uint256 indexed orderId,
+        address indexed owner,
+        address indexed baseAsset,
+        uint256 interestRate,
+        uint256 duration,
+        uint256 minLoan,
+        uint8 leverage
+    );
+
+    event OrderDeposit(
+        uint256 indexed orderId,
+        address indexed asset,
+        uint256 amount
+    );
+
+    event OrderWithdraw(
+        uint256 indexed orderId,
+        address indexed asset,
+        uint256 amount
+    );
+
+    event PositionOpened(
+        uint256 indexed positionId,
+        uint256 indexed orderId,
+        address indexed owner,
+        address collateralAsset,
+        uint256 loanAmount,
+        uint256 collateralAmount
+    );
+
+    event PositionDeposit(
+        uint256 indexed positionId,
+        address indexed asset,
+        uint256 amount
+    );
+
+    event PositionFrozen(
+        uint256 indexed positionId,
+        address indexed liquidator,
+        uint256 timestamp
+    );
+    
+    event PositionLiquidated(
+        uint256 indexed positionId,
+        address indexed liquidator,
+        uint256 rewardAmount
+    );
+
+    event MarginSwap(
+        uint256 indexed positionId,
+        address assetIn,
+        address assetOut,
+        uint256 amountIn,
+        uint256 amountOut
+    );
+    
 
     struct Order {
         address owner;
@@ -128,7 +184,7 @@ contract MarginModule {
 
         orders[orderIndex] = _newOrder;
 
-        emit NewOrder(asset, orderIndex);
+        emit OrderCreated(orderIndex, msg.sender, asset, interestRate, duration, minLoan, leverage);
         orderIndex++;
     }
 
@@ -138,6 +194,7 @@ contract MarginModule {
         require(orders[orderId].baseAsset == address(0));
 
         orders[orderId].balance += msg.value;
+        emit OrderDeposit(orderId, address(0), msg.value);
     }
 
     function orderDeposit(uint256 orderId, uint256 amount) public {
@@ -147,6 +204,7 @@ contract MarginModule {
 
         _receiveAsset(orders[orderId].baseAsset, amount);
         orders[orderId].balance += amount;
+        emit OrderDeposit(orderId, orders[orderId].baseAsset, amount);
     }
 
     function isOrderOpen(uint256 id) public view returns(bool) {
@@ -166,6 +224,7 @@ contract MarginModule {
         }
         orders[orderId].balance -= amount;
 
+        emit OrderDeposit(orderId, orders[orderId].baseAsset, amount);
     }
 
     function positionDeposit(uint256 positionId, address asset, uint256 idInWhitelist,  uint256 amount) public {
@@ -176,6 +235,7 @@ contract MarginModule {
         _receiveAsset(asset, amount);
 
         addAsset(positionId, asset, amount);
+        emit PositionDeposit(positionId, asset, amount);
     }
 
     function getAssetId(uint256 positionId, address asset) public view returns (uint256) {
@@ -319,6 +379,7 @@ contract MarginModule {
 
         require(!subjectToLiquidation(positionIndex));
         positionIndex++;
+        emit PositionOpened(positionIndex, _orderId, msg.sender, collateralAsset, _amount, _collateralAmount);
     }
 
     function marginSwap(uint256 _positionId,
@@ -363,6 +424,8 @@ contract MarginModule {
         // add new (received) asset to Position
         addAsset(_positionId, _asset2, amountOut);
         reduceAsset(_positionId, _asset1, _amount);
+
+        emit MarginSwap(_positionId, _asset1, _asset2, _amount, amountOut);
     }
 
     struct SwapData {
@@ -494,6 +557,7 @@ contract MarginModule {
         // add new (received) asset to Position
         addAsset(_positionId, _asset2, amountOut);
         reduceAsset(_positionId, _asset1, _amount);
+        emit MarginSwap(_positionId, _asset1, _asset2, _amount, amountOut);
     }
 
 
@@ -559,6 +623,7 @@ contract MarginModule {
         } else if (subjectToLiquidation(positionId)) {
             position.frozenTime = block.timestamp;
             position.liquidator = msg.sender;
+            emit PositionFrozen(positionId, msg.sender, block.timestamp);
         }
     }
 
@@ -627,6 +692,7 @@ contract MarginModule {
 	    } else {
                 _sendAsset(order.baseAsset, order.liquidationRewardAmount);
 	    }
+            emit PositionLiquidated(positionId, msg.sender, order.liquidationRewardAmount);
         }
 
         position.open = false; 
