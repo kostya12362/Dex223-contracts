@@ -255,9 +255,9 @@ contract MarginModule {
         uint256[] storage balances = position.balances;
 
 	// base asset
-        if (assets[0] == _asset) {
-	    balances[0] += _amount;
-	} else {
+        if (assets.length > 0 && assets[0] == _asset) {
+	        balances[0] += _amount;
+	    } else {
             uint256 id = getAssetId(_positionIndex, _asset);
             if (id < assets.length) {
                 balances[id] += _amount;
@@ -748,6 +748,14 @@ contract MarginModule {
     }
 
     function _getEquivalentInBaseAsset(address asset, uint256 amount, address baseAsset) internal returns(uint256 baseAmount) {
+        if (asset == baseAsset) {
+            baseAmount = amount;
+        } else {
+	        (address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, baseAsset);
+            uint256 price = oracle.getPrice(poolAddress);
+	        baseAmount = amount * price;
+        }
+
         return baseAmount;
     }
 
