@@ -659,7 +659,11 @@ contract MarginModule {
         uint256 amount = balances[id];
 
         reduceAsset(positionId, asset, amount);
-        _sendAsset(asset, amount);
+	    if (asset == address(0)) {
+            _sendEth(amount);
+        } else {
+            _sendAsset(asset, amount);
+        }
     }
 
     function _liquidate(uint256 positionId) internal {
@@ -688,9 +692,9 @@ contract MarginModule {
 	    // Payment of liquidation reward
 	    // (reward asset is the same as the base asset)
 	    if (order.baseAsset == address(0)) {
-		_sendEth(order.liquidationRewardAmount);
+            _sendEth(order.liquidationRewardAmount);
 	    } else {
-                _sendAsset(order.baseAsset, order.liquidationRewardAmount);
+            _sendAsset(order.baseAsset, order.liquidationRewardAmount);
 	    }
             emit PositionLiquidated(positionId, msg.sender, order.liquidationRewardAmount);
         }
