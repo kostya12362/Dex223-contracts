@@ -820,4 +820,25 @@ contract MarginModule {
         require(IERC223(asset).transfer(msg.sender, amount));
     }
 
+    // view functions
+
+    function getPositionAssets(uint256 id) public view returns (address[] memory) {
+        return positions[id].assets;
+    }
+
+    function getPositionBalances(uint256 id) public view returns (uint256[] memory) {
+        return positions[id].balances;
+    }
+
+    function getPositionWhitelistedTokens(uint256 id) public view returns (address[] memory) {
+        return positions[id].whitelistedTokens;
+    }
+
+    function getOrderWhitelistedTokens(uint256 id) public view returns (address[] memory) {
+        return orders[id].whitelistedTokens;
+    }
+
+    function getOrderCollateralAssets(uint256 id) public view returns (address[] memory) {
+        return orders[id].collateralAssets;
+    }
 }
