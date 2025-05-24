@@ -596,9 +596,12 @@ contract MarginModule {
         uint256 elapsedDays = elapsedTime / 1 days;
 
         Order storage order = orders[position.orderId];
-        uint256 requiredAmount = position.initialBalance;
-        requiredAmount += (position.initialBalance * order.interestRate * elapsedDays) / 30;
+        // calculation of accrued loan interest over the past days
+        uint256 requiredAmount = (position.initialBalance * order.interestRate * elapsedDays) / 30;
+        // strip excess precision digits from interestRate
         requiredAmount = requiredAmount / INTEREST_RATE_PRECISION;
+        // include the loan principal amount
+        requiredAmount += position.initialBalance;
 
         return requiredAmount;
     }
