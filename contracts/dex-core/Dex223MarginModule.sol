@@ -38,8 +38,8 @@ contract MarginModule {
     mapping (uint256 => Position) public positions;
     mapping (address => mapping(address => uint256)) public erc223deposit;
 
-    uint256 orderIndex;
-    uint256 positionIndex;
+    uint256 internal orderIndex;
+    uint256 internal positionIndex;
 
     event OrderCreated(
         uint256 indexed orderId,
@@ -843,5 +843,13 @@ contract MarginModule {
 
     function getOrderCollateralAssets(uint256 id) public view returns (address[] memory) {
         return orders[id].collateralAssets;
+    }
+
+    function getOrdersLength() public view returns (uint256) {
+       return orderIndex;
+    }
+
+    function getPositionsLength() public view returns (uint256) {
+        return positionIndex;
     }
 }
