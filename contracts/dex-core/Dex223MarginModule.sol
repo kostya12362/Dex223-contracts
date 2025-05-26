@@ -407,6 +407,7 @@ contract MarginModule {
         require(factory.getPool(_asset1, _asset2, _feeTier) != address(0));
 
         // load & use IRouter interface for ERC-20.
+        IERC20Minimal(_asset1).approve(address(router), _amount);
         ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
             tokenIn: _asset1,
             tokenOut: _asset2,
