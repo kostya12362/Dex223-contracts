@@ -770,10 +770,10 @@ contract MarginModule {
     function _validateAsset(uint256 positionId, address asset, uint256 idInWhitelist) internal {
         Position storage position = positions[positionId];
 
-        if(idInWhitelist != 0) {
-            require(position.whitelistedTokens[idInWhitelist] == asset);
-        } else {
+        if (position.whitelistedTokenList != address(0)) {
             require(IDex223Autolisting(position.whitelistedTokenList).isListed(asset));
+        } else {
+            require(position.whitelistedTokens[idInWhitelist] == asset);
         }
     }
 
