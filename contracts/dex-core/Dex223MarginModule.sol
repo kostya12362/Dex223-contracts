@@ -146,6 +146,11 @@ contract MarginModule {
         address payer;
     }
 
+    struct Token {
+        address erc20;
+        address erc223;
+    }
+
     constructor(address _factory, address _router, address _oracle) {
         factory = IDex223Factory(_factory);
         router = ISwapRouter(_router);
@@ -417,7 +422,7 @@ contract MarginModule {
             amountIn: _amount,
             amountOutMinimum: 0,
             sqrtPriceLimitX96: 0,
-            prefer223Out: false  // TODO should we be able to choose out token type ?
+            prefer223Out: false
         });
         uint256 amountOut = ISwapRouter(router).exactInputSingle(swapParams);
         require(amountOut > 0);
@@ -492,7 +497,7 @@ contract MarginModule {
         // then the asset must be found in an auto-listing contract.
         uint256 _whitelistId2,
         uint256 _amount,
-        address _asset2, // TODO can it be ERC20 ?
+        address _asset2,
         uint24 _feeTier) public {
         // Only allow the owner of the position to perform trading operations with it.
         require(positions[_positionId].owner == msg.sender);
@@ -610,7 +615,7 @@ contract MarginModule {
     function liquidate(uint256 positionId) public {
         Position storage position = positions[positionId];
 
-        require(position.open); // TODO: Or closed over than 24 hours ago
+        require(position.open);
 
         if (position.frozenTime > 0) {
             require(position.frozenTime < block.timestamp);
@@ -647,7 +652,20 @@ contract MarginModule {
 
         uint256 requiredAmount = _paybackBaseAsset(position);
         if (requiredAmount > 0) {
-            // TODO: order payout in non-base assets
+            // Start from 1 as 0 is base asset
+            for (uint256 i = 1; i < position.assets.length && requiredAmount > 0; i++) {
+                address asset = position.assets[i];
+                uint256 balance = position.balances[i];
+                
+                if (balance == 0) continue;
+                
+                uint256 baseAssetReceived = _swapToBaseAsset(positionId, asset, balance);
+            }
+            
+            // Final attempt to pay back after all swaps
+            requiredAmount = _paybackBaseAsset(position);
+            
+            require(requiredAmount == 0, "Insufficient funds to close position");
         }
     }
 
@@ -677,20 +695,21 @@ contract MarginModule {
 
         uint256 requiredAmount = _paybackBaseAsset(position);
         if (requiredAmount > 0) {
-
-            // TODO: order payout in non-base assets
-            // Start i is 1, because 0 is base asset.
-            for (uint256 i = 1; i < position.assets.length; i++) {
+            // Start from 1 as 0 is base asset
+            for (uint256 i = 1; i < position.assets.length && requiredAmount > 0; i++) {
                 address asset = position.assets[i];
                 uint256 balance = position.balances[i];
-                (address pool,, uint24 fee) = oracle.findPoolWithHighestLiquidity(asset, order.baseAsset);
-                require(IERC20Minimal(asset).transfer(pool, balance));
-                marginSwap(positionId, i, 0, 0, balance, order.baseAsset, fee);
+                
+                if (balance == 0) continue;
+                
+                uint256 baseAssetReceived = _swapToBaseAsset(positionId, asset, balance);
             }
+            
+            // Final attempt to pay back after all swaps
+            requiredAmount = _paybackBaseAsset(position);
+            
+            require(requiredAmount == 0, "Insufficient funds to close position");
         }
-
-        // after swapping all assets into the base asset, re-sent it to close the remaining debt.
-        requiredAmount = _paybackBaseAsset(position);
 
         if (success) {
             // Payment of liquidation reward
@@ -822,6 +841,27 @@ contract MarginModule {
 
         erc223deposit[msg.sender][asset] = 0;
         require(IERC223(asset).transfer(msg.sender, amount));
+    }
+    
+
+    function _swapToBaseAsset(uint256 positionId, address asset, uint256 amount) internal returns (uint256) {
+        Position storage position = positions[positionId];
+        Order storage order = orders[position.orderId];
+        
+        (address pool,, uint24 fee) = oracle.findPoolWithHighestLiquidity(asset, order.baseAsset);
+        require(pool != address(0), "No pool available");
+    
+        (, address token0) = IDex223Pool(pool).token0();
+        (, address token1) = IDex223Pool(pool).token1();
+    
+        if (token0 == asset || token1 == asset) {
+            marginSwap223(positionId, getAssetId(positionId, asset), 0, 0, amount, order.baseAsset, fee);
+        } else {
+            marginSwap(positionId, getAssetId(positionId, asset), 0, 0, amount, order.baseAsset, fee);
+        }
+
+        // Return new base asset balance
+        return position.balances[0]; 
     }
 
     // view functions
