@@ -725,32 +725,6 @@ contract MarginModule {
         position.open = false; 
     }
 
-    /* order owner privileges */
-
-    function getInterest(uint256 id) public {
-        require(id < positionIndex);
-
-        Position storage position = positions[id];
-        Order storage order = orders[position.orderId];
-
-        require(order.owner == msg.sender);
-        require(block.timestamp > position.createdAt);
-
-        uint256 currentDuration = position.createdAt - block.timestamp;
-        uint256 daysForPayment = currentDuration / 1 days - position.paidDays;
-        position.paidDays += daysForPayment;
-
-        uint256 baseAmountForPayment = daysForPayment * position.interest * position.initialBalance;
-        
-        require(baseAmountForPayment > 0);
-
-        // TODO: calculate rate of collateral asset to base asset
-
-        uint256 collateralAmountForPayment = 1; // TODO: change to calculated value
-
-        _sendAsset(position.assets[1], collateralAmountForPayment);
-    }
-
     /* Internal functions */
 
     function _paybackBaseAsset(Position storage position) internal returns(uint256) {
