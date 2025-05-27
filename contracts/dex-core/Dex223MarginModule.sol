@@ -36,18 +36,75 @@ contract MarginModule {
 
     mapping (uint256 => Order)    public orders;
     mapping (uint256 => Position) public positions;
+    mapping (address => mapping(address => uint256)) public erc223deposit;
 
-    uint256 orderIndex;
-    uint256 positionIndex;
+    uint256 internal orderIndex;
+    uint256 internal positionIndex;
 
-    event NewOrder(address asset, uint256 orderID);
+    event OrderCreated(
+        uint256 indexed orderId,
+        address indexed owner,
+        address indexed baseAsset,
+        uint256 interestRate,
+        uint256 duration,
+        uint256 minLoan,
+        uint8 leverage
+    );
+
+    event OrderDeposit(
+        uint256 indexed orderId,
+        address indexed asset,
+        uint256 amount
+    );
+
+    event OrderWithdraw(
+        uint256 indexed orderId,
+        address indexed asset,
+        uint256 amount
+    );
+
+    event PositionOpened(
+        uint256 indexed positionId,
+        uint256 indexed orderId,
+        address indexed owner,
+        address collateralAsset,
+        uint256 loanAmount,
+        uint256 collateralAmount
+    );
+
+    event PositionDeposit(
+        uint256 indexed positionId,
+        address indexed asset,
+        uint256 amount
+    );
+
+    event PositionFrozen(
+        uint256 indexed positionId,
+        address indexed liquidator,
+        uint256 timestamp
+    );
+    
+    event PositionLiquidated(
+        uint256 indexed positionId,
+        address indexed liquidator,
+        uint256 rewardAmount
+    );
+
+    event MarginSwap(
+        uint256 indexed positionId,
+        address assetIn,
+        address assetOut,
+        uint256 amountIn,
+        uint256 amountOut
+    );
+    
 
     struct Order {
         address owner;
         uint256 id;
         address[] whitelistedTokens;
         address whitelistedTokenList;
-	// interestRate equal 55 means 0,55% or interestRate equal 3500 means 35%
+        // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35%
         uint256 interestRate;
         uint256 duration;
         address[] collateralAssets;
@@ -92,7 +149,7 @@ contract MarginModule {
     constructor(address _factory, address _router, address _oracle) {
         factory = IDex223Factory(_factory);
         router = ISwapRouter(_router);
-	oracle = Oracle(oracle);
+        oracle = Oracle(oracle);
     }
 
     function createOrder(address[] memory tokens,
@@ -127,7 +184,7 @@ contract MarginModule {
 
         orders[orderIndex] = _newOrder;
 
-        emit NewOrder(asset, orderIndex);
+        emit OrderCreated(orderIndex, msg.sender, asset, interestRate, duration, minLoan, leverage);
         orderIndex++;
     }
 
@@ -137,6 +194,7 @@ contract MarginModule {
         require(orders[orderId].baseAsset == address(0));
 
         orders[orderId].balance += msg.value;
+        emit OrderDeposit(orderId, address(0), msg.value);
     }
 
     function orderDeposit(uint256 orderId, uint256 amount) public {
@@ -146,6 +204,7 @@ contract MarginModule {
 
         _receiveAsset(orders[orderId].baseAsset, amount);
         orders[orderId].balance += amount;
+        emit OrderDeposit(orderId, orders[orderId].baseAsset, amount);
     }
 
     function isOrderOpen(uint256 id) public view returns(bool) {
@@ -165,6 +224,7 @@ contract MarginModule {
         }
         orders[orderId].balance -= amount;
 
+        emit OrderDeposit(orderId, orders[orderId].baseAsset, amount);
     }
 
     function positionDeposit(uint256 positionId, address asset, uint256 idInWhitelist,  uint256 amount) public {
@@ -175,12 +235,13 @@ contract MarginModule {
         _receiveAsset(asset, amount);
 
         addAsset(positionId, asset, amount);
+        emit PositionDeposit(positionId, asset, amount);
     }
 
     function getAssetId(uint256 positionId, address asset) public view returns (uint256) {
         address[] storage assets = positions[positionId].assets;
 
-	for (uint256 i = 0; i < assets.length; i++) {
+        for (uint256 i = 0; i < assets.length; i++) {
             if (assets[i] == asset) return i;
         }
         return assets.length;
@@ -193,10 +254,10 @@ contract MarginModule {
         address[] storage assets = position.assets;
         uint256[] storage balances = position.balances;
 
-	// base asset
-        if (assets[0] == _asset) {
-	    balances[0] += _amount;
-	} else {
+        // base asset
+        if (assets.length > 0 && assets[0] == _asset) {
+            balances[0] += _amount;
+        } else {
             uint256 id = getAssetId(_positionIndex, _asset);
             if (id < assets.length) {
                 balances[id] += _amount;
@@ -207,7 +268,7 @@ contract MarginModule {
                 assets.push(_asset);
                 balances.push(_amount);
             }
-	}
+        }
 
     }
 
@@ -292,25 +353,25 @@ contract MarginModule {
         uint256 receivedEth = msg.value;
 
         // Deposit collateral
-	// In case the collateral asset is Ether
-	if (collateralAsset == address(0)) {
-	    require(receivedEth >= _collateralAmount);
-	    receivedEth -= _collateralAmount;
-	// or ERC-20
-	} else {
-            _receiveAsset(collateralAsset, _collateralAmount);
-	}
+        // In case the collateral asset is Ether
+        if (collateralAsset == address(0)) {
+            require(receivedEth >= _collateralAmount);
+            receivedEth -= _collateralAmount;
+        // or ERC-20
+        } else {
+                _receiveAsset(collateralAsset, _collateralAmount);
+        }
 
-	// Deposit the liquidation reward
-	// In case the reward asset is Ether
-	// (reward asset is the same as the base asset)
-	if (order.baseAsset == address(0)) {
-	    require(receivedEth >= order.liquidationRewardAmount);
-	    receivedEth -= order.liquidationRewardAmount;
-	// or ERC-20
-	} else {
-	    _receiveAsset(order.baseAsset, order.liquidationRewardAmount);
-	}
+        // Deposit the liquidation reward
+        // In case the reward asset is Ether
+        // (reward asset is the same as the base asset)
+        if (order.baseAsset == address(0)) {
+            require(receivedEth >= order.liquidationRewardAmount);
+            receivedEth -= order.liquidationRewardAmount;
+        // or ERC-20
+        } else {
+            _receiveAsset(order.baseAsset, order.liquidationRewardAmount);
+        }
 
         // Make sure position is not subject to liquidation right after it was created.
         // Revert otherwise.
@@ -318,12 +379,13 @@ contract MarginModule {
 
         require(!subjectToLiquidation(positionIndex));
         positionIndex++;
+        emit PositionOpened(positionIndex, _orderId, msg.sender, collateralAsset, _amount, _collateralAmount);
     }
 
     function marginSwap(uint256 _positionId,
         uint256 _assetId1,
         uint256 _whitelistId1, // Internal ID in the whitelisted array. If set to 0
-    // then the asset must be found in an auto-listing contract.
+        // then the asset must be found in an auto-listing contract.
         uint256 _whitelistId2,
         uint256 _amount,
         address _asset2,
@@ -345,6 +407,7 @@ contract MarginModule {
         require(factory.getPool(_asset1, _asset2, _feeTier) != address(0));
 
         // load & use IRouter interface for ERC-20.
+        IERC20Minimal(_asset1).approve(address(router), _amount);
         ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
             tokenIn: _asset1,
             tokenOut: _asset2,
@@ -362,6 +425,8 @@ contract MarginModule {
         // add new (received) asset to Position
         addAsset(_positionId, _asset2, amountOut);
         reduceAsset(_positionId, _asset1, _amount);
+
+        emit MarginSwap(_positionId, _asset1, _asset2, _amount, amountOut);
     }
 
     struct SwapData {
@@ -424,7 +489,7 @@ contract MarginModule {
     function marginSwap223(uint256 _positionId,
         uint256 _assetId1,
         uint256 _whitelistId1, // Internal ID in the whitelisted array. If set to 0
-    // then the asset must be found in an auto-listing contract.
+        // then the asset must be found in an auto-listing contract.
         uint256 _whitelistId2,
         uint256 _amount,
         address _asset2, // TODO can it be ERC20 ?
@@ -493,49 +558,53 @@ contract MarginModule {
         // add new (received) asset to Position
         addAsset(_positionId, _asset2, amountOut);
         reduceAsset(_positionId, _asset1, _amount);
+        emit MarginSwap(_positionId, _asset1, _asset2, _amount, amountOut);
     }
 
 
 
-        // @Dexaran 
-        // Add liquidation criteria checks.
-        // A position must be subject to liquidation once the amount of funds currently available is less-than-equal
-        // than the amount of funds expected at the moment of the position check.
-        // Example: if $10,000 loan was taken at 30% per 30 days and we are checking the state of this position 
-        //          at 15th day then we expect it to have a cumulative balance of $11,500 at the moment of the check.
+    // @Dexaran 
+    // Add liquidation criteria checks.
+    // A position must be subject to liquidation once the amount of funds currently available is less-than-equal
+    // than the amount of funds expected at the moment of the position check.
+    // Example: if $10,000 loan was taken at 30% per 30 days and we are checking the state of this position 
+    //          at 15th day then we expect it to have a cumulative balance of $11,500 at the moment of the check.
 
-        // Price must be taken from the price source specified by the order owner.
+    // Price must be taken from the price source specified by the order owner.
     function subjectToLiquidation(uint256 positionId) public view returns (bool) {
         Position storage position = positions[positionId];
 
-	uint256 requiredAmount = calculateDebtAmount(position);
+        uint256 requiredAmount = calculateDebtAmount(position);
 
         // base asset(at index 0) balance
-	uint256 totalValueInBaseAsset = position.balances[0];
+        uint256 totalValueInBaseAsset = position.balances[0];
 
-	for (uint256 i = 1; i < position.assets.length; i++) {
-	    address asset = position.assets[i];
-	    uint256 balance = position.balances[i];
+        for (uint256 i = 1; i < position.assets.length; i++) {
+            address asset = position.assets[i];
+            uint256 balance = position.balances[i];
 
-	    (address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, position.assets[0]);
+            (address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, position.assets[0]);
             uint256 price = oracle.getPrice(poolAddress);
-	    totalValueInBaseAsset += balance * price;
-	}
+            totalValueInBaseAsset += balance * price;
+        }
 
         return totalValueInBaseAsset < requiredAmount;
     }
 
     // The borrower must repay both the principal amount and the accrued interest.
     function calculateDebtAmount(Position storage position) internal view returns (uint256) {
-	uint256 elapsedTime = block.timestamp - position.createdAt;
-	uint256 elapsedDays = elapsedTime / 1 days;
+        uint256 elapsedTime = block.timestamp - position.createdAt;
+        uint256 elapsedDays = elapsedTime / 1 days;
 
-	Order storage order = orders[position.orderId];
-	uint256 requiredAmount = position.initialBalance;
-        requiredAmount += (position.initialBalance * order.interestRate * elapsedDays) / 30;
-	requiredAmount = requiredAmount / INTEREST_RATE_PRECISION;
+        Order storage order = orders[position.orderId];
+        // calculation of accrued loan interest over the past days
+        uint256 requiredAmount = (position.initialBalance * order.interestRate * elapsedDays) / 30;
+        // strip excess precision digits from interestRate
+        requiredAmount = requiredAmount / INTEREST_RATE_PRECISION;
+        // include the loan principal amount
+        requiredAmount += position.initialBalance;
 
-	return requiredAmount;
+        return requiredAmount;
     }
 
     function liquidate(uint256 positionId) public {
@@ -558,6 +627,7 @@ contract MarginModule {
         } else if (subjectToLiquidation(positionId)) {
             position.frozenTime = block.timestamp;
             position.liquidator = msg.sender;
+            emit PositionFrozen(positionId, msg.sender, block.timestamp);
         }
     }
 
@@ -566,11 +636,11 @@ contract MarginModule {
         Order storage order = orders[position.orderId];
         require(position.open);
 
-	// Only position owner can close, or order owner after deadline
-	if (msg.sender != position.owner) {
-	    bool isExpired = position.deadline <= block.timestamp;
+        // Only position owner can close, or order owner after deadline
+        if (msg.sender != position.owner) {
+            bool isExpired = position.deadline <= block.timestamp;
             require(isExpired && msg.sender == order.owner);
-	}
+        }
 
         require(position.frozenTime == 0, "Position frozen");
         position.open = false;
@@ -593,7 +663,11 @@ contract MarginModule {
         uint256 amount = balances[id];
 
         reduceAsset(positionId, asset, amount);
-        _sendAsset(asset, amount);
+        if (asset == address(0)) {
+            _sendEth(amount);
+        } else {
+            _sendAsset(asset, amount);
+        }
     }
 
     function _liquidate(uint256 positionId) internal {
@@ -605,27 +679,28 @@ contract MarginModule {
         if (requiredAmount > 0) {
 
             // TODO: order payout in non-base assets
-	    // Start i is 1, because 0 is base asset.
+            // Start i is 1, because 0 is base asset.
             for (uint256 i = 1; i < position.assets.length; i++) {
                 address asset = position.assets[i];
-		uint256 balance = position.balances[i];
-		(address pool,, uint24 fee) = oracle.findPoolWithHighestLiquidity(asset, order.baseAsset);
-		require(IERC20Minimal(asset).transfer(pool, balance));
+                uint256 balance = position.balances[i];
+                (address pool,, uint24 fee) = oracle.findPoolWithHighestLiquidity(asset, order.baseAsset);
+                require(IERC20Minimal(asset).transfer(pool, balance));
                 marginSwap(positionId, i, 0, 0, balance, order.baseAsset, fee);
-	    }
+            }
         }
 
-	// after swapping all assets into the base asset, re-sent it to close the remaining debt.
+        // after swapping all assets into the base asset, re-sent it to close the remaining debt.
         requiredAmount = _paybackBaseAsset(position);
 
         if (success) {
-	    // Payment of liquidation reward
-	    // (reward asset is the same as the base asset)
-	    if (order.baseAsset == address(0)) {
-		_sendEth(order.liquidationRewardAmount);
-	    } else {
+            // Payment of liquidation reward
+            // (reward asset is the same as the base asset)
+            if (order.baseAsset == address(0)) {
+                _sendEth(order.liquidationRewardAmount);
+            } else {
                 _sendAsset(order.baseAsset, order.liquidationRewardAmount);
-	    }
+            }
+            emit PositionLiquidated(positionId, msg.sender, order.liquidationRewardAmount);
         }
 
         position.open = false; 
@@ -660,9 +735,9 @@ contract MarginModule {
     /* Internal functions */
 
     function _paybackBaseAsset(Position storage position) internal returns(uint256) {
-	// baseAsset is always at index 0 in the assets array
+        // baseAsset is always at index 0 in the assets array
         uint256 baseBalance = position.balances[0];
-	uint256 requiredAmount = calculateDebtAmount(position);
+        uint256 requiredAmount = calculateDebtAmount(position);
 
         Order storage order = orders[position.orderId];
 
@@ -673,14 +748,22 @@ contract MarginModule {
             order.balance += requiredAmount;
             requiredAmount = 0;
         } else {
-	    position.balances[0] = 0;
-	    order.balance += baseBalance;
-	    requiredAmount -= baseBalance;
-	}
+            position.balances[0] = 0;
+            order.balance += baseBalance;
+            requiredAmount -= baseBalance;
+        }
         return requiredAmount;
     }
 
     function _getEquivalentInBaseAsset(address asset, uint256 amount, address baseAsset) internal returns(uint256 baseAmount) {
+        if (asset == baseAsset) {
+            baseAmount = amount;
+        } else {
+            (address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, baseAsset);
+            uint256 price = oracle.getPrice(poolAddress);
+            baseAmount = amount * price;
+        }
+
         return baseAmount;
     }
 
@@ -688,10 +771,10 @@ contract MarginModule {
     function _validateAsset(uint256 positionId, address asset, uint256 idInWhitelist) internal {
         Position storage position = positions[positionId];
 
-        if(idInWhitelist != 0) {
-            require(position.whitelistedTokens[idInWhitelist] == asset);
-        } else {
+        if (position.whitelistedTokenList != address(0)) {
             require(IDex223Autolisting(position.whitelistedTokenList).isListed(asset));
+        } else {
+            require(position.whitelistedTokens[idInWhitelist] == asset);
         }
     }
 
@@ -708,14 +791,66 @@ contract MarginModule {
 
     function _receiveAsset(address asset, uint256 amount) internal {
         require(asset != address(0));
+        
+        // erc223
+        if (erc223deposit[msg.sender][asset] > 0) {
+            require(erc223deposit[msg.sender][asset] >= amount);
+            erc223deposit[msg.sender][asset] -= amount;
 
-        uint256 balance = IERC20Minimal(asset).balanceOf(address(this));
-        IERC20Minimal(asset).transferFrom(msg.sender, address(this), amount);
-        require(IERC20Minimal(asset).balanceOf(address(this)) >= balance + amount);
+        // erc20
+        } else {
+            uint256 balance = IERC20Minimal(asset).balanceOf(address(this));
+            IERC20Minimal(asset).transferFrom(msg.sender, address(this), amount);
+            require(IERC20Minimal(asset).balanceOf(address(this)) >= balance + amount);
+        }
     }
 
     function checkCurrencyLimit(uint256 _positionId) internal view returns (bool) {
         return positions[_positionId].assets.length + 1 <= orders[positions[_positionId].orderId].currencyLimit;
     }
 
+    function tokenReceived(address user, uint256 value, bytes memory data) public returns (bytes4) {
+        address asset = msg.sender;
+        erc223deposit[user][asset] += value;
+        
+        return 0x8943ec02;
+    }
+
+    function withdraw223(address asset) public {
+        uint256 amount = erc223deposit[msg.sender][asset]; 
+        require(amount > 0);
+
+        erc223deposit[msg.sender][asset] = 0;
+        require(IERC223(asset).transfer(msg.sender, amount));
+    }
+
+    // view functions
+
+    function getPositionAssets(uint256 id) public view returns (address[] memory) {
+        return positions[id].assets;
+    }
+
+    function getPositionBalances(uint256 id) public view returns (uint256[] memory) {
+        return positions[id].balances;
+    }
+
+    function getPositionWhitelistedTokens(uint256 id) public view returns (address[] memory) {
+        return positions[id].whitelistedTokens;
+    }
+
+    function getOrderWhitelistedTokens(uint256 id) public view returns (address[] memory) {
+        return orders[id].whitelistedTokens;
+    }
+
+    function getOrderCollateralAssets(uint256 id) public view returns (address[] memory) {
+        return orders[id].collateralAssets;
+    }
+
+    function getOrdersLength() public view returns (uint256) {
+       return orderIndex;
+    }
+
+    function getPositionsLength() public view returns (uint256) {
+        return positionIndex;
+    }
 }
