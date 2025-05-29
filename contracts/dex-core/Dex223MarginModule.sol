@@ -170,7 +170,7 @@ contract MarginModule {
         uint8 leverage
     ) public {
 
-        require(leverage > 1);
+        require(leverage >= 1);
 
         Order memory _newOrder = Order(msg.sender,
             orderIndex,
