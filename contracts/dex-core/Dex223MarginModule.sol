@@ -222,12 +222,12 @@ contract MarginModule {
         require(!isOrderOpen(orderId));
         require(orders[orderId].balance >= amount);
 
+        orders[orderId].balance -= amount;
         if (orders[orderId].baseAsset == address(0)) {
             _sendEth(amount);
         } else {
             _sendAsset(orders[orderId].baseAsset, amount);
         }
-        orders[orderId].balance -= amount;
 
         emit OrderDeposit(orderId, orders[orderId].baseAsset, amount);
     }
