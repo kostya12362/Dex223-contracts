@@ -229,7 +229,7 @@ contract MarginModule {
             _sendAsset(orders[orderId].baseAsset, amount);
         }
 
-        emit OrderDeposit(orderId, orders[orderId].baseAsset, amount);
+        emit OrderWithdraw(orderId, orders[orderId].baseAsset, amount);
     }
 
     function positionDeposit(uint256 positionId, address asset, uint256 idInWhitelist,  uint256 amount) public {
