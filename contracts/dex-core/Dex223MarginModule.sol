@@ -748,7 +748,7 @@ contract MarginModule {
         return requiredAmount;
     }
 
-    function _getEquivalentInBaseAsset(address asset, uint256 amount, address baseAsset) internal returns(uint256 baseAmount) {
+    function _getEquivalentInBaseAsset(address asset, uint256 amount, address baseAsset) internal view returns(uint256 baseAmount) {
         if (asset == baseAsset) {
             baseAmount = amount;
         } else {
@@ -761,7 +761,7 @@ contract MarginModule {
     }
 
 
-    function _validateAsset(uint256 positionId, address asset, uint256 idInWhitelist) internal {
+    function _validateAsset(uint256 positionId, address asset, uint256 idInWhitelist) internal view {
         Position storage position = positions[positionId];
 
         if (position.whitelistedTokenList != address(0)) {
