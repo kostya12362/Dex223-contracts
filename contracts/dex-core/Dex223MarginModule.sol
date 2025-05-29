@@ -318,7 +318,7 @@ contract MarginModule {
         address collateralAsset = order.collateralAssets[_collateralIdx];
 
         require(order.minLoan <= _amount);
-        require(order.balance > _amount);
+        require(order.balance >= _amount);
 
         // leverage validation:
         // (collateral + loaned_asset) / collateral <= order.leverage
