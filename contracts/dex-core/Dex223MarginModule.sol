@@ -154,7 +154,7 @@ contract MarginModule {
     constructor(address _factory, address _router, address _oracle) {
         factory = IDex223Factory(_factory);
         router = ISwapRouter(_router);
-        oracle = Oracle(oracle);
+        oracle = Oracle(_oracle);
     }
 
     function createOrder(address[] memory tokens,
@@ -653,7 +653,8 @@ contract MarginModule {
         uint256 requiredAmount = _paybackBaseAsset(position);
         if (requiredAmount > 0) {
             // Start from 1 as 0 is base asset
-            for (uint256 i = 1; i < position.assets.length && requiredAmount > 0; i++) {
+            for (uint256 i = 1; i < position.assets.length && requiredAmount > 0; i++) 
+            {
                 address asset = position.assets[i];
                 uint256 balance = position.balances[i];
                 
