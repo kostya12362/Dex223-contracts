@@ -289,11 +289,11 @@ contract MarginModule {
         balances[id] -= _amount;
 
         if (balances[id] == 0) {
-            removeAsset(_positionIndex, _asset, id);
+            removeAsset(_positionIndex, id);
         }
     }
 
-    function removeAsset(uint256 _positionIndex, address _asset, uint256 _idx) internal {
+    function removeAsset(uint256 _positionIndex, uint256 _idx) internal {
         // base asset is not deleted, even if it is empty
         if (_idx == 0) return;
 
