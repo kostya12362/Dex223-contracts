@@ -193,7 +193,7 @@ contract MarginModule {
         orderIndex++;
     }
 
-    function orderDepositEth(uint256 orderId, uint256 amount) public payable {
+    function orderDepositEth(uint256 orderId) public payable {
         require(orders[orderId].owner == msg.sender);
         require(isOrderOpen(orderId));
         require(orders[orderId].baseAsset == address(0));
