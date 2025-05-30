@@ -13,6 +13,9 @@
 | POSITION_MANAGER    | [0x9cF5612332b49519Aa398F0DE05d0a69D84124F1](https://etherscan.io/address/0x9cF5612332b49519Aa398F0DE05d0a69D84124F1#code) |
 | POOL_INIT_CODE_HASH | 0x9966400177a96c358783e5915045e9e9f19d514dadb45a9e599b5f6295cbfd64                                                         |
 | POOL_USDC_WETH      | [0x29dC799d9d491CB5D1Cb7f3e385aEDEa0D39f0dD](https://etherscan.io/address/0x29dC799d9d491CB5D1Cb7f3e385aEDEa0D39f0dD#code) |
+| CORE_AUTOLISTING    | [0x13ddc6460c705d29d37b18a906c7fe69fa9e711d](https://etherscan.io/address/0x13ddc6460c705d29d37b18a906c7fe69fa9e711d)      |
+| FREE_AUTOLISTING    | [0xa7089d8cbcc47543388a346dd6ebf0b05106a477](https://etherscan.io/address/0xa7089d8cbcc47543388a346dd6ebf0b05106a477)      |
+| AUTOLISTINGS_REGISTRY | [0x105F43A70aFCEd0493545D04C1d5687DF4b3f48f](https://etherscan.io/address/0x105F43A70aFCEd0493545D04C1d5687DF4b3f48f)    |
 
 ## Sepolia testnet deployment
 
