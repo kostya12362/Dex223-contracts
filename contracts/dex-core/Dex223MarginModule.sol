@@ -598,12 +598,11 @@ contract MarginModule {
 
     // The borrower must repay both the principal amount and the accrued interest.
     function calculateDebtAmount(Position storage position) internal view returns (uint256) {
-        uint256 elapsedTime = block.timestamp - position.createdAt;
-        uint256 elapsedDays = elapsedTime / 1 days;
+        uint256 elapsedSecs = block.timestamp - position.createdAt;
 
         Order storage order = orders[position.orderId];
         // calculation of accrued loan interest over the past days
-        uint256 requiredAmount = (position.initialBalance * order.interestRate * elapsedDays) / 30;
+        uint256 requiredAmount = (position.initialBalance * order.interestRate * elapsedSecs) / 30 days;
         // strip excess precision digits from interestRate
         requiredAmount = requiredAmount / INTEREST_RATE_PRECISION;
         // include the loan principal amount
