@@ -32,7 +32,6 @@ contract MarginModule {
     uint256 constant private INTEREST_RATE_PRECISION = 10000; 
     IDex223Factory public factory;
     ISwapRouter public router;
-    Oracle public oracle;
 
     mapping (uint256 => Order)    public orders;
     mapping (uint256 => Position) public positions;
@@ -117,6 +116,7 @@ contract MarginModule {
 
         uint16 currencyLimit;
         uint8 leverage;
+        address oracle;
     }
 
     struct Position {
@@ -151,10 +151,9 @@ contract MarginModule {
         address erc223;
     }
 
-    constructor(address _factory, address _router, address _oracle) {
+    constructor(address _factory, address _router) {
         factory = IDex223Factory(_factory);
         router = ISwapRouter(_router);
-        oracle = Oracle(_oracle);
     }
 
     function createOrder(address[] memory tokens,
@@ -167,7 +166,8 @@ contract MarginModule {
         address asset,
         uint256 deadline,
         uint16 currencyLimit,
-        uint8 leverage
+        uint8 leverage,
+        address oracle
     ) public {
 
         require(leverage > 1);
@@ -185,7 +185,8 @@ contract MarginModule {
             deadline,
             0,
             currencyLimit,
-            leverage);
+            leverage,
+            oracle);
 
         orders[orderIndex] = _newOrder;
 
@@ -322,7 +323,7 @@ contract MarginModule {
 
         // leverage validation:
         // (collateral + loaned_asset) / collateral <= order.leverage
-        uint256 collateralEquivalentInBaseAsset = _getEquivalentInBaseAsset(collateralAsset, _collateralAmount, order.baseAsset);
+        uint256 collateralEquivalentInBaseAsset = _getEquivalentInBaseAsset(collateralAsset, _collateralAmount, order.baseAsset, _orderId);
         
         uint256 leverage = (collateralEquivalentInBaseAsset + _amount) / collateralEquivalentInBaseAsset;
         require(leverage <= MAX_UINT8);
@@ -578,6 +579,8 @@ contract MarginModule {
     // Price must be taken from the price source specified by the order owner.
     function subjectToLiquidation(uint256 positionId) public view returns (bool) {
         Position storage position = positions[positionId];
+        Order storage order = orders[position.orderId];
+        Oracle oracle = Oracle(order.oracle);
 
         uint256 requiredAmount = calculateDebtAmount(position);
 
@@ -748,10 +751,12 @@ contract MarginModule {
         return requiredAmount;
     }
 
-    function _getEquivalentInBaseAsset(address asset, uint256 amount, address baseAsset) internal view returns(uint256 baseAmount) {
+    function _getEquivalentInBaseAsset(address asset, uint256 amount, address baseAsset, uint256 orderId) internal view returns(uint256 baseAmount) {
         if (asset == baseAsset) {
             baseAmount = amount;
         } else {
+            Order storage order = orders[orderId];
+            Oracle oracle = Oracle(order.oracle);
             (address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, baseAsset);
             uint256 price = oracle.getPrice(poolAddress);
             baseAmount = amount * price;
@@ -821,6 +826,7 @@ contract MarginModule {
     function _swapToBaseAsset(uint256 positionId, address asset, uint256 amount) internal returns (uint256) {
         Position storage position = positions[positionId];
         Order storage order = orders[position.orderId];
+        Oracle oracle = Oracle(order.oracle);
         
         (address pool,, uint24 fee) = oracle.findPoolWithHighestLiquidity(asset, order.baseAsset);
         require(pool != address(0), "No pool available");
