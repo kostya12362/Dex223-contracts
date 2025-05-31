@@ -109,8 +109,9 @@ contract MarginModule {
         address[] collateralAssets;
         uint256 minLoan; // Protection of liquidation process from overload.
         uint256 liquidationRewardAmount;
+        uint256 liquidationRewardAsset;
 
-        address baseAsset; // and the liquidationRewardAsset
+        address baseAsset;
         uint256 deadline;
         uint256 balance;
 
@@ -163,6 +164,7 @@ contract MarginModule {
         address[] memory collateral,
         uint256 minLoan,
         uint256 liquidationRewardAmount,
+        address liquidationRewardAsset,
         address asset,
         uint256 deadline,
         uint16 currencyLimit,
@@ -181,6 +183,7 @@ contract MarginModule {
             collateral,
             minLoan,
             liquidationRewardAmount,
+            liquidationRewardAsset,
             asset,
             deadline,
             0,
@@ -365,18 +368,17 @@ contract MarginModule {
             receivedEth -= _collateralAmount;
         // or ERC-20
         } else {
-                _receiveAsset(collateralAsset, _collateralAmount);
+            _receiveAsset(collateralAsset, _collateralAmount);
         }
 
         // Deposit the liquidation reward
         // In case the reward asset is Ether
-        // (reward asset is the same as the base asset)
-        if (order.baseAsset == address(0)) {
+        if (order.liquidationRewardAsset == address(0)) {
             require(receivedEth >= order.liquidationRewardAmount);
             receivedEth -= order.liquidationRewardAmount;
         // or ERC-20
         } else {
-            _receiveAsset(order.baseAsset, order.liquidationRewardAmount);
+            _receiveAsset(order.liquidationRewardAsset, order.liquidationRewardAmount);
         }
 
         // Make sure position is not subject to liquidation right after it was created.
@@ -689,6 +691,14 @@ contract MarginModule {
         } else {
             _sendAsset(asset, amount);
         }
+
+        // Payment of liquidation reward
+        Order storage order = orders[position.orderId];
+        if (order.liquidationRewardAsset == address(0)) {
+            _sendEth(order.liquidationRewardAmount);
+        } else {
+            _sendAsset(order.liquidationRewardAsset, order.liquidationRewardAmount);
+        }
     }
 
     function _liquidate(uint256 positionId) internal {
@@ -716,11 +726,10 @@ contract MarginModule {
 
         if (success) {
             // Payment of liquidation reward
-            // (reward asset is the same as the base asset)
-            if (order.baseAsset == address(0)) {
+            if (order.liquidationRewardAsset == address(0)) {
                 _sendEth(order.liquidationRewardAmount);
             } else {
-                _sendAsset(order.baseAsset, order.liquidationRewardAmount);
+                _sendAsset(order.liquidationRewardAsset, order.liquidationRewardAmount);
             }
             emit PositionLiquidated(positionId, msg.sender, order.liquidationRewardAmount);
         }
