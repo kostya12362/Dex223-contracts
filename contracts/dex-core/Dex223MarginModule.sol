@@ -33,9 +33,10 @@ contract MarginModule {
     IDex223Factory public factory;
     ISwapRouter public router;
 
-    mapping (uint256 => Order)    public orders;
+    mapping (uint256 => Order) public orders;
     mapping (uint256 => Position) public positions;
     mapping (address => mapping(address => uint256)) public erc223deposit;
+    Tokenlist[] public tokenlists;
 
     uint256 internal orderIndex;
     uint256 internal positionIndex;
@@ -64,11 +65,9 @@ contract MarginModule {
 
     event PositionOpened(
         uint256 indexed positionId,
-        uint256 indexed orderId,
         address indexed owner,
-        address collateralAsset,
         uint256 loanAmount,
-        uint256 collateralAmount
+        address baseAsset
     );
 
     event PositionDeposit(
@@ -96,28 +95,33 @@ contract MarginModule {
         uint256 amountIn,
         uint256 amountOut
     );
-    
+   
+    struct Tokenlist {
+        bool isContract;
+        address[] tokens;
+    }
+
+    struct OrderExpiration {
+        uint256 liquidationRewardAmount;
+        address liquidationRewardAsset;
+        uint32 deadline;
+    } 
 
     struct Order {
         address owner;
         uint256 id;
-        address[] whitelistedTokens;
-        address whitelistedTokenList;
+        uint256 whitelist;
         // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35%
         uint256 interestRate;
         uint256 duration;
-        address[] collateralAssets;
         uint256 minLoan; // Protection of liquidation process from overload.
-        uint256 liquidationRewardAmount;
-        uint256 liquidationRewardAsset;
-
         address baseAsset;
-        uint256 deadline;
-        uint256 balance;
-
         uint16 currencyLimit;
         uint8 leverage;
         address oracle;
+        uint256 balance;
+        OrderExpiration expirationData;
+        address[] collateralAssets;
     }
 
     struct Position {
@@ -126,9 +130,6 @@ contract MarginModule {
 
         address[] assets;
         uint256[] balances;
-
-        address[] whitelistedTokens;
-        address whitelistedTokenList;
 
         uint256 deadline;
         uint256 createdAt;
@@ -157,44 +158,57 @@ contract MarginModule {
         router = ISwapRouter(_router);
     }
 
-    function createOrder(address[] memory tokens,
-        address listingContract,
+    function createOrder(
+        uint256 whitelistId,
         uint256 interestRate,
         uint256 duration,
-        address[] memory collateral,
         uint256 minLoan,
         uint256 liquidationRewardAmount,
         address liquidationRewardAsset,
         address asset,
-        uint256 deadline,
+        uint32 deadline,
         uint16 currencyLimit,
         uint8 leverage,
         address oracle
     ) public {
 
         require(leverage > 1);
+        require(deadline > block.timestamp);
+        address[] memory empty;
 
-        Order memory _newOrder = Order(msg.sender,
-            orderIndex,
-            tokens,
-            listingContract,
-            interestRate,
-            duration,
-            collateral,
-            minLoan,
+        OrderExpiration memory expirationData = OrderExpiration(
             liquidationRewardAmount,
             liquidationRewardAsset,
+            deadline
+        );
+
+        orders[orderIndex] = Order(
+            msg.sender,
+            orderIndex,
+            whitelistId,
+            interestRate,
+            duration,
+            minLoan,
             asset,
-            deadline,
-            0,
             currencyLimit,
             leverage,
-            oracle);
-
-        orders[orderIndex] = _newOrder;
+            oracle,
+            0,
+            expirationData,
+            empty
+        );
 
         emit OrderCreated(orderIndex, msg.sender, asset, interestRate, duration, minLoan, leverage);
         orderIndex++;
+    }
+
+    function activateOrder(uint256 id, address[] calldata collateral) public {
+        Order storage order = orders[id];
+        require(order.owner == msg.sender);
+        require(order.collateralAssets.length == 0);
+        require(collateral.length > 0);
+
+        order.collateralAssets = collateral; 
     }
 
     function orderDepositEth(uint256 orderId) public payable {
@@ -217,7 +231,12 @@ contract MarginModule {
     }
 
     function isOrderOpen(uint256 id) public view returns(bool) {
-        return orders[id].deadline < block.timestamp;
+        Order storage order = orders[id];
+        ( , , uint32 deadline) = getOrderExpirationData(id);
+        bool isActivated = order.collateralAssets.length > 0;
+        bool isNotExpired = deadline > block.timestamp;
+
+        return isActivated && isNotExpired;
     }
 
     function orderWithdraw(uint256 orderId, uint256 amount) public {
@@ -340,9 +359,6 @@ contract MarginModule {
             _assets,
             _balances,
 
-            order.whitelistedTokens,
-            order.whitelistedTokenList,
-
             order.duration,
             block.timestamp,
             _amount,
@@ -373,12 +389,13 @@ contract MarginModule {
 
         // Deposit the liquidation reward
         // In case the reward asset is Ether
-        if (order.liquidationRewardAsset == address(0)) {
-            require(receivedEth >= order.liquidationRewardAmount);
-            receivedEth -= order.liquidationRewardAmount;
+        (uint256 rewardAmount, address rewardAsset, ) = getOrderExpirationData(_orderId);
+        if (rewardAsset == address(0)) {
+            require(receivedEth >= rewardAmount);
+            receivedEth -= rewardAmount;
         // or ERC-20
         } else {
-            _receiveAsset(order.liquidationRewardAsset, order.liquidationRewardAmount);
+            _receiveAsset(rewardAsset, rewardAmount);
         }
 
         // Make sure position is not subject to liquidation right after it was created.
@@ -387,7 +404,7 @@ contract MarginModule {
 
         require(!subjectToLiquidation(positionIndex));
         positionIndex++;
-        emit PositionOpened(positionIndex, _orderId, msg.sender, collateralAsset, _amount, _collateralAmount);
+        emit PositionOpened(positionIndex, msg.sender, _amount, order.baseAsset);
     }
 
     function marginSwap(uint256 _positionId,
@@ -694,10 +711,11 @@ contract MarginModule {
 
         // Payment of liquidation reward
         Order storage order = orders[position.orderId];
-        if (order.liquidationRewardAsset == address(0)) {
-            _sendEth(order.liquidationRewardAmount);
+        (uint256 rewardAmount, address rewardAsset, ) = getOrderExpirationData(position.orderId);
+        if (rewardAsset == address(0)) {
+            _sendEth(rewardAmount);
         } else {
-            _sendAsset(order.liquidationRewardAsset, order.liquidationRewardAmount);
+            _sendAsset(rewardAsset, rewardAmount);
         }
     }
 
@@ -726,12 +744,13 @@ contract MarginModule {
 
         if (success) {
             // Payment of liquidation reward
-            if (order.liquidationRewardAsset == address(0)) {
-                _sendEth(order.liquidationRewardAmount);
+            (uint256 rewardAmount, address rewardAsset, ) = getOrderExpirationData(position.orderId);
+            if (rewardAsset == address(0)) {
+                _sendEth(rewardAmount);
             } else {
-                _sendAsset(order.liquidationRewardAsset, order.liquidationRewardAmount);
+                _sendAsset(rewardAsset, rewardAmount);
             }
-            emit PositionLiquidated(positionId, msg.sender, order.liquidationRewardAmount);
+            emit PositionLiquidated(positionId, msg.sender, rewardAmount);
         }
 
         position.open = false; 
@@ -777,11 +796,15 @@ contract MarginModule {
 
     function _validateAsset(uint256 positionId, address asset, uint256 idInWhitelist) internal view {
         Position storage position = positions[positionId];
+        Order storage order = orders[position.orderId];
+        Tokenlist storage whitelist = tokenlists[order.whitelist];
 
-        if (position.whitelistedTokenList != address(0)) {
-            require(IDex223Autolisting(position.whitelistedTokenList).isListed(asset));
+        if (whitelist.isContract == true) {
+            // Optimization: contract address stored as first element instead of separate var
+            address _contract = whitelist.tokens[0];
+            require(IDex223Autolisting(_contract).isListed(asset));
         } else {
-            require(position.whitelistedTokens[idInWhitelist] == asset);
+            require(whitelist.tokens[idInWhitelist] == asset);
         }
     }
 
@@ -863,16 +886,14 @@ contract MarginModule {
         return positions[id].balances;
     }
 
-    function getPositionWhitelistedTokens(uint256 id) public view returns (address[] memory) {
-        return positions[id].whitelistedTokens;
-    }
-
-    function getOrderWhitelistedTokens(uint256 id) public view returns (address[] memory) {
-        return orders[id].whitelistedTokens;
-    }
-
     function getOrderCollateralAssets(uint256 id) public view returns (address[] memory) {
         return orders[id].collateralAssets;
+    }
+
+    function getOrderExpirationData(uint256 id) public view returns(uint256, address, uint32) {
+        OrderExpiration storage data = orders[id].expirationData;
+
+        return (data.liquidationRewardAmount, data.liquidationRewardAsset, data.deadline);
     }
 
     function getOrdersLength() public view returns (uint256) {
