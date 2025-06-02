@@ -158,6 +158,15 @@ contract MarginModule {
         router = ISwapRouter(_router);
     }
 
+    function addTokenlist(address[] calldata tokens) public returns(uint256 id) {
+        Tokenlist memory list = Tokenlist(
+            false,
+            tokens
+        );
+        tokenlists.push(list);
+        return tokenlists.length - 1;
+    }
+
     function createOrder(
         uint256 whitelistId,
         uint256 interestRate,
@@ -359,7 +368,7 @@ contract MarginModule {
             _assets,
             _balances,
 
-            order.duration,
+            block.timestamp + order.duration,
             block.timestamp,
             _amount,
             order.interestRate,
@@ -877,6 +886,11 @@ contract MarginModule {
     }
 
     // view functions
+
+    function getTokenlistsLength() public view returns (uint256) {
+        return tokenlists.length;
+    }
+
 
     function getPositionAssets(uint256 id) public view returns (address[] memory) {
         return positions[id].assets;
