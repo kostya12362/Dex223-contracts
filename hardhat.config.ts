@@ -1,6 +1,6 @@
 import "@nomicfoundation/hardhat-toolbox";
 // import "@typechain/hardhat";
-// import "@nomicfoundation/hardhat-ethers";
+import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-chai-matchers";
 // import "@nomicfoundation/hardhat-toolbox";
 
@@ -13,7 +13,11 @@ require("dotenv").config();
 const DEFAULT_MNEMONIC =
   "test test test test test test test test test test test junk";
 const MNEMONIC = process.env.MNEMONIC || DEFAULT_MNEMONIC;
+const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
+
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
+const SEPOLIA_NODE_URL = process.env.SEPOLIA_NODE_URL || "";
+const ETHEREUM_NODE_URL = process.env.ETHEREUM_NODE_URL || "";
 const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY || "";
 
 task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
@@ -26,52 +30,55 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 
 async function makeDirIfNotExists(directory: any) {
   await new Promise<void>((resolve) => {
-    fs.access(directory, function(err) {
-      if (err && err.code === 'ENOENT') {
-        fs.mkdirSync(directory, {recursive: true});
+    fs.access(directory, function (err) {
+      if (err && err.code === "ENOENT") {
+        fs.mkdirSync(directory, { recursive: true });
       }
       resolve();
     });
-  })
+  });
 }
 
-task("solidity-json", "Extract Standard Solidity Input JSON", async (taskArgs, hre) => {
-  console.log("solidity-json task");
-  const pathA = await hre.artifacts.getArtifactPaths();
-  console.log(pathA);
-  const names = await hre.artifacts.getAllFullyQualifiedNames();
-  console.dir(names);
-  const baseDir = "./artifacts/solidity-json";
+task(
+  "solidity-json",
+  "Extract Standard Solidity Input JSON",
+  async (taskArgs, hre) => {
+    console.log("solidity-json task");
+    const pathA = await hre.artifacts.getArtifactPaths();
+    console.log(pathA);
+    const names = await hre.artifacts.getAllFullyQualifiedNames();
+    console.dir(names);
+    const baseDir = "./artifacts/solidity-json";
 
-  const handled: any[] = [];
+    const handled: any[] = [];
 
-  for (const name of names) {
+    for (const name of names) {
+      const [fileName] = name.split(":");
 
-    const [fileName] = name.split(':');
+      // skip, if non-local file
+      if (!fs.existsSync(path.join("./", fileName))) {
+        continue;
+      }
 
-    // skip, if non-local file
-    if (!fs.existsSync(path.join("./", fileName))) {
-      continue;
+      // only one output per file
+      if (handled.find((x) => x === fileName)) {
+        continue;
+      }
+      handled.push(fileName);
+
+      const buildInfo = await hre.artifacts.getBuildInfo(name);
+      const artifactStdJson = JSON.stringify(buildInfo?.input, null, 4);
+
+      const fullFileName = path.join(baseDir, fileName + ".json");
+      const directoryName = path.dirname(fullFileName);
+
+      console.log("> Extracting standard Solidity Input JSON for", fileName);
+
+      await makeDirIfNotExists(directoryName);
+      fs.writeFileSync(fullFileName, artifactStdJson);
     }
-
-    // only one output per file
-    if (handled.find(x => x === fileName)) {
-      continue;
-    }
-    handled.push(fileName);
-
-    const buildInfo = await hre.artifacts.getBuildInfo(name);
-    const artifactStdJson = JSON.stringify(buildInfo?.input,null, 4);
-
-    const fullFileName = path.join(baseDir, fileName + ".json");
-    const directoryName = path.dirname(fullFileName);
-
-    console.log("> Extracting standard Solidity Input JSON for", fileName);
-
-    await makeDirIfNotExists(directoryName);
-    fs.writeFileSync(fullFileName, artifactStdJson);
   }
-});
+);
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -93,8 +100,8 @@ const config: HardhatUserConfig = {
           optimizer: {
             enabled: true,
             runs: 2000,
-          }
-        }
+          },
+        },
       },
       "contracts/dex-core/Autolisting.sol": {
         version: "0.7.6",
@@ -102,8 +109,8 @@ const config: HardhatUserConfig = {
           optimizer: {
             enabled: true,
             runs: 5000,
-          }
-        }
+          },
+        },
       },
       "contracts/dex-periphery/NonfungiblePositionManager.sol": {
         version: "0.7.6",
@@ -111,8 +118,8 @@ const config: HardhatUserConfig = {
           optimizer: {
             enabled: true,
             runs: 5000,
-          }
-        }
+          },
+        },
       },
       "contracts/dex-periphery/SwapRouter.sol": {
         version: "0.7.6",
@@ -120,20 +127,26 @@ const config: HardhatUserConfig = {
           optimizer: {
             enabled: true,
             runs: 5000,
-          }
-        }
+          },
+        },
       },
-    }
+      "contracts/dex-periphery/base/NFTDescriptor.sol": {
+        version: "0.7.6",
+        settings: {
+          optimizer: { enabled: true, runs: 200 },
+        },
+      },
+    },
   },
 
   typechain: {
     outDir: "typechain-types",
     target: "ethers-v6",
-
   },
   etherscan: {
     apiKey: {
       sepolia: ETHERSCAN_API_KEY,
+      mainnet: ETHERSCAN_API_KEY,
     },
   },
   paths: {
@@ -165,24 +178,34 @@ const config: HardhatUserConfig = {
       url: "http://0.0.0.0:8545/",
       chainId: 31337,
     },
+    ethereum: {
+      // url: `https://sepolia.infura.io/v3/${INFURA_API_KEY}`,
+      // url: "https://rpc2.sepolia.org", // https://sepolia.drpc.org
+      // url: "https://ethereum-sepolia.rpc.subquery.network/public",
+      url: ETHEREUM_NODE_URL,
+      chainId: 1,
+      accounts: PRIVATE_KEY
+        ? [PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`]
+        : [],
+    },
     sepolia: {
       // url: `https://sepolia.infura.io/v3/${INFURA_API_KEY}`,
       // url: "https://rpc2.sepolia.org", // https://sepolia.drpc.org
       // url: "https://ethereum-sepolia.rpc.subquery.network/public",
-      url: "https://eth-sepolia.public.blastapi.io",
+      url: SEPOLIA_NODE_URL,
       chainId: 11155111,
-      accounts: {
-        mnemonic: MNEMONIC,
-      },
+      accounts: PRIVATE_KEY
+        ? [PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`]
+        : [],
     },
     tbnb: {
-      // url: "https://bsc-testnet-rpc.publicnode.com", 
+      // url: "https://bsc-testnet-rpc.publicnode.com",
       url: "https://data-seed-prebsc-1-s2.bnbchain.org:8545",
       // url: "https://data-seed-prebsc-1-s3.bnbchain.org:8545",
       // url: "https://public.stackup.sh/api/v1/node/bsc-testnet", // https://data-seed-prebsc-1-s2.bnbchain.org:8545",
-      // url: "https://endpoints.omniatech.io/v1/bsc/testnet/public",  // NOT work  
+      // url: "https://endpoints.omniatech.io/v1/bsc/testnet/public",  // NOT work
       // url: "https://bsc-testnet.public.blastapi.io",
-      // url: "https://api.zan.top/node/v1/bsc/testnet/public",         // NOT work 
+      // url: "https://api.zan.top/node/v1/bsc/testnet/public",         // NOT work
       // url: "https://bsc-testnet.blockpi.network/v1/rpc/public",
       chainId: 97,
       accounts: {
