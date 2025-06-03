@@ -4,12 +4,15 @@
   "dependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.3",
     "@nomicfoundation/hardhat-ethers": "^3.0.5",
+    "@nomicfoundation/hardhat-ignition": "^0.15.5",
     "@nomicfoundation/hardhat-verify": "^2.0.8",
+    "@nomicfoundation/ignition-core": "^0.15.5",
     "bignumber.js": "^9.1.2",
     "decimal.js": "^10.4.3",
     "dotenv": "^16.3.1",
     "mocha": "^10.4.0",
-    "mocha-chai-jest-snapshot": "^1.1.4"
+    "mocha-chai-jest-snapshot": "^1.1.4",
+    "remixd": "^0.2.4"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition-ethers": "^0.15.5",
@@ -20,7 +23,6 @@
     "@types/chai": "^4.3.16",
     "@types/chai-as-promised": "^7.1.8",
     "@types/mocha": "^10.0.6",
-    "@types/node": "^20.14.5",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
     "async": "^3.2.5",
@@ -51,6 +53,8 @@
     "hardhat:test": "hardhat test",
     "hardhat:test:update": "UPDATE_SNAPSHOT=1 hardhat test",
     "hardhat:test:coverage": "hardhat coverage",
+    "hardhat:sepolia:marginmodule:depploy": "hardhat run --network sepolia scripts/margin/deploy-margin.ts",
+    "hardhat:sepolia:marginmodule:verify": "hardhat run --network sepolia scripts/margin/verify-margin.ts",
     "hardhat:test:gas": "REPORT_GAS=true COINMARKETCAP_API_KEY=$(security find-generic-password -w -s 'Coinmarketcap API Key') hardhat test",
     "hardhat:test:router": "hardhat test ./test/SwapRouter.spec.ts ./test/UniswapV3Router.spec.ts",
     "hardhat:test:routergas": "hardhat test ./test/SwapRouter.gas.spec.ts",

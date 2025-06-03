@@ -67,9 +67,9 @@ contract MockTimeDex223Pool is Dex223Pool {
             ( amount0,  amount1) = abi.decode(retdata, (int256, int256));
             amountOut = uint256(-(zeroForOne ? amount1 : amount0));
 
-            if (unwrapETH) {
-                unwrapWETH9(recipient, zeroForOne ? token1.erc20 : token0.erc20, amountOutMinimum);
-            }
+            // if (unwrapETH) {
+            //     unwrapWETH9(recipient, zeroForOne ? token1.erc20 : token0.erc20, amountOutMinimum);
+            // }
             
             require(amountOut >= amountOutMinimum, 'Too little received');
         } else {

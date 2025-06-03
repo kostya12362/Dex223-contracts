@@ -1,0 +1,770 @@
+{
+	"compiler": {
+		"version": "0.7.6+commit.7338295f"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "uint24",
+						"name": "fee",
+						"type": "uint24"
+					},
+					{
+						"indexed": true,
+						"internalType": "int24",
+						"name": "tickSpacing",
+						"type": "int24"
+					}
+				],
+				"name": "FeeAmountEnabled",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "oldOwner",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "newOwner",
+						"type": "address"
+					}
+				],
+				"name": "OwnerChanged",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "token0_erc20",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "token1_erc20",
+						"type": "address"
+					},
+					{
+						"indexed": false,
+						"internalType": "address",
+						"name": "token0_erc223",
+						"type": "address"
+					},
+					{
+						"indexed": false,
+						"internalType": "address",
+						"name": "token1_erc223",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "uint24",
+						"name": "fee",
+						"type": "uint24"
+					},
+					{
+						"indexed": false,
+						"internalType": "int24",
+						"name": "tickSpacing",
+						"type": "int24"
+					},
+					{
+						"indexed": false,
+						"internalType": "address",
+						"name": "pool",
+						"type": "address"
+					}
+				],
+				"name": "PoolCreated",
+				"type": "event"
+			},
+			{
+				"inputs": [],
+				"name": "converter",
+				"outputs": [
+					{
+						"internalType": "contract ITokenStandardConverter",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "tokenA_erc20",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "tokenB_erc20",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "tokenA_erc223",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "tokenB_erc223",
+						"type": "address"
+					},
+					{
+						"internalType": "uint24",
+						"name": "fee",
+						"type": "uint24"
+					}
+				],
+				"name": "createPool",
+				"outputs": [
+					{
+						"internalType": "address payable",
+						"name": "pool",
+						"type": "address"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint24",
+						"name": "fee",
+						"type": "uint24"
+					},
+					{
+						"internalType": "int24",
+						"name": "tickSpacing",
+						"type": "int24"
+					}
+				],
+				"name": "enableFeeAmount",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint24",
+						"name": "",
+						"type": "uint24"
+					}
+				],
+				"name": "feeAmountTickSpacing",
+				"outputs": [
+					{
+						"internalType": "int24",
+						"name": "",
+						"type": "int24"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					},
+					{
+						"internalType": "uint24",
+						"name": "",
+						"type": "uint24"
+					}
+				],
+				"name": "getPool",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "owner",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "parameters",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "factory",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "token0_erc20",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "token1_erc20",
+						"type": "address"
+					},
+					{
+						"internalType": "uint24",
+						"name": "fee",
+						"type": "uint24"
+					},
+					{
+						"internalType": "int24",
+						"name": "tickSpacing",
+						"type": "int24"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "pool_lib",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_lib",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "_converter",
+						"type": "address"
+					}
+				],
+				"name": "set",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_owner",
+						"type": "address"
+					}
+				],
+				"name": "setOwner",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "standardIntrospection",
+				"outputs": [
+					{
+						"internalType": "contract ITokenStandardIntrospection",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_from",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_value",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bytes",
+						"name": "",
+						"type": "bytes"
+					}
+				],
+				"name": "tokenReceived",
+				"outputs": [
+					{
+						"internalType": "bytes4",
+						"name": "",
+						"type": "bytes4"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "tokenReceivedCaller",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {
+				"createPool(address,address,address,address,uint24)": {
+					"details": "tokenA and tokenB may be passed in either order: token0/token1 or token1/token0. tickSpacing is retrieved from the fee. The call will revert if the pool already exists, the fee is invalid, or the token arguments are invalid.",
+					"params": {
+						"fee": "The desired fee for the pool",
+						"tokenA_erc20": "ERC20 version of One of the two tokens in the desired pool",
+						"tokenA_erc223": "ERC223 version of One of the two tokens in the desired pool",
+						"tokenB_erc20": "ERC20 version of The other of the two tokens in the desired pool",
+						"tokenB_erc223": "ERC223 version of The other of the two tokens in the desired pool"
+					},
+					"returns": {
+						"pool": "The address of the newly created pool"
+					}
+				},
+				"enableFeeAmount(uint24,int24)": {
+					"details": "Fee amounts may never be removed once enabled",
+					"params": {
+						"fee": "The fee amount to enable, denominated in hundredths of a bip (i.e. 1e-6)",
+						"tickSpacing": "The spacing between ticks to be enforced for all pools created with the given fee amount"
+					}
+				},
+				"setOwner(address)": {
+					"details": "Must be called by the current owner",
+					"params": {
+						"_owner": "The new owner of the factory"
+					}
+				}
+			},
+			"stateVariables": {
+				"feeAmountTickSpacing": {
+					"details": "A fee amount can never be removed, so this value should be hard coded or cached in the calling context",
+					"params": {
+						"fee": "The enabled fee, denominated in hundredths of a bip. Returns 0 in case of unenabled fee"
+					},
+					"return": "The tick spacing"
+				},
+				"getPool": {
+					"details": "tokenA and tokenB may be passed in either token0/token1 or token1/token0 order",
+					"params": {
+						"fee": "The fee collected upon every swap in the pool, denominated in hundredths of a bip",
+						"tokenA": "The contract address of either token0 or token1",
+						"tokenB": "The contract address of the other token"
+					},
+					"return": "pool The pool address"
+				},
+				"owner": {
+					"details": "Can be changed by the current owner via setOwner",
+					"return": "The address of the factory owner"
+				}
+			},
+			"title": "Canonical Uniswap V3 factory",
+			"version": 1
+		},
+		"userdoc": {
+			"events": {
+				"FeeAmountEnabled(uint24,int24)": {
+					"notice": "Emitted when a new fee amount is enabled for pool creation via the factory"
+				},
+				"OwnerChanged(address,address)": {
+					"notice": "Emitted when the owner of the factory is changed"
+				}
+			},
+			"kind": "user",
+			"methods": {
+				"createPool(address,address,address,address,uint24)": {
+					"notice": "Creates a pool for the given two tokens and fee"
+				},
+				"enableFeeAmount(uint24,int24)": {
+					"notice": "Enables a fee amount with the given tickSpacing"
+				},
+				"feeAmountTickSpacing(uint24)": {
+					"notice": "Returns the tick spacing for a given fee amount, if enabled, or 0 if not enabled"
+				},
+				"getPool(address,address,uint24)": {
+					"notice": "Returns the pool address for a given pair of tokens and a fee, or address 0 if it does not exist"
+				},
+				"owner()": {
+					"notice": "Returns the current owner of the factory"
+				},
+				"parameters()": {
+					"notice": "Get the parameters to be used in constructing the pool, set transiently during pool creation."
+				},
+				"setOwner(address)": {
+					"notice": "Updates the owner of the factory"
+				}
+			},
+			"notice": "Deploys Uniswap V3 pools and manages ownership and control over pool protocol fees",
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"contracts/dex-core/Dex223Factory.sol": "Dex223Factory"
+		},
+		"evmVersion": "istanbul",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": true,
+			"runs": 5000
+		},
+		"remappings": []
+	},
+	"sources": {
+		"contracts/dex-core/Dex223Factory.sol": {
+			"keccak256": "0x2f74d50b328d347d962c9ce613069480d43a3ab58770534103a59072742fd550",
+			"license": "BUSL-1.1",
+			"urls": [
+				"bzz-raw://e0e1ce542f0e7956e9becfc28d89a6485946339a548febffb6428fdf5ae49c77",
+				"dweb:/ipfs/QmcP3T5D92HYtJygJrKdL7tJLpPp9FGKW4GCDS5TagEWoZ"
+			]
+		},
+		"contracts/dex-core/Dex223Pool.sol": {
+			"keccak256": "0x3083e93c4ae6f64d0aa45873b66ae1e7568507dbd431997e7b6e3adf9646978c",
+			"license": "BUSL-1.1",
+			"urls": [
+				"bzz-raw://fdceef0cbc1f5ae45c045207e91735b9c4805875d913c3cf3e409a3035f397da",
+				"dweb:/ipfs/Qmbj5n3Sqp7S4szpMrkADNNzt8qCFCew4Fw81ELFaT9UJX"
+			]
+		},
+		"contracts/dex-core/Dex223PoolDeployer.sol": {
+			"keccak256": "0x071dac669c28beeeb649d25abddd3925533da68aa104f52d880196e335ea3744",
+			"license": "BUSL-1.1",
+			"urls": [
+				"bzz-raw://1a01c821826267f5762d433dade0c4ba99dd1a362490adca1e91c8f459feaa43",
+				"dweb:/ipfs/QmdtKxdMkd4XJp97zWE2VNAti66XCSzA7fzXQVBM2AjeTc"
+			]
+		},
+		"contracts/dex-core/NoDelegateCall.sol": {
+			"keccak256": "0xc12ceb98dc803a7d745d7e7c53175b4c5b7781dd26e6f5d233deecd8b0d0d1dc",
+			"license": "BUSL-1.1",
+			"urls": [
+				"bzz-raw://224378ae3c96adfb81f0c827e2a5a8b51e3bb51c6fc4a82e79f14720b42d719f",
+				"dweb:/ipfs/QmapcnEvVdCoLqp4CUYmg8tuc6ui1u6fg8gt7YoCVvgZyC"
+			]
+		},
+		"contracts/dex-core/interfaces/IDex223Factory.sol": {
+			"keccak256": "0xa763b3594e9396f05bc21af086a8d10b5eb9cdfdb63cb93ddd8f1d41febd205f",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://8d3c58d57e0a1041055bacdce5578ac44612739075243072a6fa08f0c43335f1",
+				"dweb:/ipfs/QmNj1BWojEC97hTF6mYSiPjeMv6cYka2tNXwkFAfdtY69X"
+			]
+		},
+		"contracts/dex-core/interfaces/IDex223PoolDeployer.sol": {
+			"keccak256": "0xe572aec99ae473f6e236442be341f1644624aa94b212680d8e6f5e25a1d5b9b4",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://2f909091685fabb8c614eff4c6bd0d111a75de5b9dee40654daee5089f32d466",
+				"dweb:/ipfs/QmaSoq7TWYSBL8HVD75sDkPE9aFrXXctYYt8tNPmiMokoM"
+			]
+		},
+		"contracts/dex-core/interfaces/IUniswapV3Pool.sol": {
+			"keccak256": "0xfe6113d518466cd6652c85b111e01f33eb62157f49ae5ed7d5a3947a2044adb1",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://1c42b9e6f5902ac38dd43e25750939baa7e0c1425dc75afd717c4412731065d5",
+				"dweb:/ipfs/QmWaoacnzsucTvBME2o7YgZBZMhaHv7fkj83htHMVWJKWh"
+			]
+		},
+		"contracts/dex-core/interfaces/callback/IUniswapV3SwapCallback.sol": {
+			"keccak256": "0x3f485fb1a44e8fbeadefb5da07d66edab3cfe809f0ac4074b1e54e3eb3c4cf69",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://095ce0626b41318c772b3ebf19d548282607f6a8f3d6c41c13edfbd5370c8652",
+				"dweb:/ipfs/QmVDZfJJ89UUCE1hMyzqpkZAtQ8jUsBgZNE5AMRG7RzRFS"
+			]
+		},
+		"contracts/dex-core/interfaces/pool/IUniswapV3PoolActions.sol": {
+			"keccak256": "0x011dad97b48fd7324b608ac1ba8e1fefb194ccddd0284698b704fc709f479441",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://2ec4a40f8364cc11b19bc440e65ce54754cb153f91fafe1fd2b4ef0748b6ad7d",
+				"dweb:/ipfs/QmVWtheNHAs51fWXCxn5To2yHF53UBEgdNahq8rZjnedu5"
+			]
+		},
+		"contracts/dex-core/interfaces/pool/IUniswapV3PoolDerivedState.sol": {
+			"keccak256": "0xe603ac5b17ecdee73ba2b27efdf386c257a19c14206e87eee77e2017b742d9e5",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://8febc9bdb399a4d94bb89f5377732652e2400e4a8dee808201ade6848f9004e7",
+				"dweb:/ipfs/QmaKDqYYFU4d2W2iN77aDHptfbFmYZRrMYXHeGpJmM8C1c"
+			]
+		},
+		"contracts/dex-core/interfaces/pool/IUniswapV3PoolEvents.sol": {
+			"keccak256": "0x8071514d0fe5d17d6fbd31c191cdfb703031c24e0ece3621d88ab10e871375cd",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://d0b571930cc7488b1d546a7e9cea7c52d8b3c4e207da657ed0e0db7343b8cd03",
+				"dweb:/ipfs/QmaGK6vVwB95QSTR1XMYvrh7ivYAYZxi3fD7v6VMA4jZ39"
+			]
+		},
+		"contracts/dex-core/interfaces/pool/IUniswapV3PoolImmutables.sol": {
+			"keccak256": "0x4b35b772bfdd3d5f76830d012c539f1a0deeb595ed78319eb4c75ff76dafeb75",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://c76bb6b177a806b04845874612dbcf1e76715e201256ff07b229519907752833",
+				"dweb:/ipfs/QmTHcKJCn8g1C7GGqowMUM6JW5VUSkGhjDma8JcZPoD1A3"
+			]
+		},
+		"contracts/dex-core/interfaces/pool/IUniswapV3PoolOwnerActions.sol": {
+			"keccak256": "0x079ce48f41c1000106a48b6138d164424d32039c33b00debb5e747a15e0f8e0b",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://bda39324be10318acfe165cad395abe57b6414e5cf571f8771ef1e82a1223bcb",
+				"dweb:/ipfs/QmdWdbEgzKRbejrsRJgeoiVzoR6q2wfL7L8t9LtHxxm6eA"
+			]
+		},
+		"contracts/dex-core/interfaces/pool/IUniswapV3PoolState.sol": {
+			"keccak256": "0x852dc1f5df7dcf7f11e7bb3eed79f0cea72ad4b25f6a9d2c35aafb48925fd49f",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://ed63907c38ff36b0e22bc9ffc53e791ea74f0d4f0e7c257fdfb5aaf8825b1f0f",
+				"dweb:/ipfs/QmSQrckghEjs6HVsA5GVgpNpZWvTXMY5eQLF7cN6deFeEg"
+			]
+		},
+		"contracts/interfaces/IERC20Minimal.sol": {
+			"keccak256": "0xbbb4fbd3cf2221bba3218d27871f61f2852ff296cbe81946b935481ff181f735",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://8ded0534518213ad286cbd3b7a120ec2070da0451f6d02e0bae6706b35f65fa3",
+				"dweb:/ipfs/QmcUVLd6GuJJ1Aw895kHprUQpwZwbo2SqPoSif3BciMfNF"
+			]
+		},
+		"contracts/interfaces/ITokenConverter.sol": {
+			"keccak256": "0x68c3a571a9c17dd73c7cb6de67e5cede74bf0a06fc6f50bbda9e8eb2c2a21d3b",
+			"license": "GPL-3.0",
+			"urls": [
+				"bzz-raw://ec26d69b8737bdff5bc9650ea4019759529525fe98970ac39dd4a2b3f9b2efe5",
+				"dweb:/ipfs/QmezKuknqyZWXC7Anq31kgZ4kkopUmSXx4yK5qcLRPH8ue"
+			]
+		},
+		"contracts/interfaces/ITokenStandardIntrospection.sol": {
+			"keccak256": "0x4756c87c3fff064ae0a4508f335eb05882776ffcfaa18a2455d05428e288d990",
+			"license": "BUSL-1.1",
+			"urls": [
+				"bzz-raw://78a9afee0d357551e07b64b64e880cda0f579ba3967887a98aafb648b8378dfe",
+				"dweb:/ipfs/QmSjTk25ZX76aQ8iWPh78qA8UvrkC92tNn9GBLxnrBwYWq"
+			]
+		},
+		"contracts/libraries/BitMath.sol": {
+			"keccak256": "0x82e425066110aac05ed8a9fc90f9ee85142b6f434769447e49d4438a8d9fcd82",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://77a97078bc992c18c59cb61e07fa4632c8a26b6babf00f3b16eabb5dcaa953b4",
+				"dweb:/ipfs/QmTj15ufLWk6AxedSVXBcLp5cYf2DCJAeDi94cVemCkm54"
+			]
+		},
+		"contracts/libraries/BlockTimestamp.sol": {
+			"keccak256": "0x6c7e159242a47218e2d64e1fbbd9c88abfad4981ba40292d67f3995a0aebe40d",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://3c68247d0a725e4bd4998fbfc19facecd78a7afe82da3736d295c2f7a469c2fb",
+				"dweb:/ipfs/QmSd5tJYWaJ61SUYtG7kYvY3YVVVra55fREaN4uSoEU2JD"
+			]
+		},
+		"contracts/libraries/FixedPoint128.sol": {
+			"keccak256": "0x2d1f4f73ae0d8f0a210b8d30084659b57c56ac8f2f96011fca36f00a6d417178",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://2ba88933f16cd2df398e19c6ad227268f83c03081b70d243c97116d2ed9bc241",
+				"dweb:/ipfs/QmTUGxdh8snzEM9VrTSS47StCg9VVWvvLJtJeNnMTFY4xb"
+			]
+		},
+		"contracts/libraries/FixedPoint96.sol": {
+			"keccak256": "0x0ba8a9b95a956a4050749c0158e928398c447c91469682ca8a7cc7e77a7fe032",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://186d3b528866065a5856f96d2aeec698efa99f8da913e9adf34f8cc296cc993d",
+				"dweb:/ipfs/QmUAiMvtAQp8c9dy57bqJYzG7hkb1uChiPaQmt264skoqP"
+			]
+		},
+		"contracts/libraries/FullMath.sol": {
+			"keccak256": "0x50e87f7a3197525d1c6f7e04290060e848677c8a4e86c554bc6ace4a4d0d476d",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://3874093a6b37d8e68f9475a91f8eb0a1c808cb6153c84cfe6c37909505a4d24e",
+				"dweb:/ipfs/QmUqGpQqvSHX4SwUvcBCs9g4ZhR9JPhgD3615oUigAhtjj"
+			]
+		},
+		"contracts/libraries/LiquidityMath.sol": {
+			"keccak256": "0xd53041349718d5bce4a89e87cd911879d41ba42ba3fab0614e5e8b742f352b88",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://ea7529b99ab4fc1d3e6c5a31990fb688f0a2d6cc302c0419e0cf5a2d6c563781",
+				"dweb:/ipfs/QmVaphRSNpfChHZKzutQ9WprwCo2WE1euvThRfHcwsnHhj"
+			]
+		},
+		"contracts/libraries/LowGasSafeMath.sol": {
+			"keccak256": "0x86715eb960f18e01ac94e3bba4614ed51a887fa3c5bd1c43bf80aa98e019cf2d",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://bfc1d5d58e59015086b0e65a6c3a2ddad312e2350480510f6c0c8167f3d71a37",
+				"dweb:/ipfs/QmQndULYjFsHKHjMAKLMfc12vWbVB5FawtioHtvwcWRJZp"
+			]
+		},
+		"contracts/libraries/Oracle.sol": {
+			"keccak256": "0x82799a37c6b962a506550fd7149fcf1346d007c7bf7496d08eab1e2081185398",
+			"license": "BUSL-1.1",
+			"urls": [
+				"bzz-raw://b584d193084495237dbf77fca81bd6099bff83364e73cb9866bd3c805ca887f2",
+				"dweb:/ipfs/QmQsbUm87Vzh6HaUTLxztpfkYZEhjt6WsoQgdMW8heVCHn"
+			]
+		},
+		"contracts/libraries/PeripheryValidation.sol": {
+			"keccak256": "0xc736bab599912d6212e8414ee4ba7af0c1e08ff6aa11caa85f5f6e07f7d421c3",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://06f6c13a86900c71fa486fc029a59d1b7eb96162bb42885b5f845d995294893e",
+				"dweb:/ipfs/QmUcBxMsmncw9n6eXhzzwSasGBvBGKH5FT8HSrAxrsXV4A"
+			]
+		},
+		"contracts/libraries/Position.sol": {
+			"keccak256": "0xb6dc6f49bf6a2e8c7bfd4b6e77a040dd2de7836e3f2885b14c45ce02969283e0",
+			"license": "BUSL-1.1",
+			"urls": [
+				"bzz-raw://37b405f9547b6871ba2cbf5cfd3dc81c3faca6f79898e45946b66928d708f1e2",
+				"dweb:/ipfs/QmdVr7VrusjBFVEBmvupyR3BxuTjswTncr1N3axYsbFwQX"
+			]
+		},
+		"contracts/libraries/SafeCast.sol": {
+			"keccak256": "0x4c12bf820c0b011f5490a209960ca34dd8af34660ef9e01de0438393d15e3fd8",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://fed11489e218e55d087d42b4f350a30e10cd2aedec8f432bd3cc712f648d5869",
+				"dweb:/ipfs/QmWfRnRxyXwHUDcTQPazxYYk5jxErGeQqdvnYtyg5nBPbU"
+			]
+		},
+		"contracts/libraries/SqrtPriceMath.sol": {
+			"keccak256": "0x4f69701d331d364b69a1cda77cd7b983a0079d36ae0e06b0bb1d64ae56c3705e",
+			"license": "BUSL-1.1",
+			"urls": [
+				"bzz-raw://f9ed4f172da650484c97d31cce084e905e69c3f3b072141cb15363f4ed0cd03c",
+				"dweb:/ipfs/QmPNDM667PxzbbR8YDbtibFaPMGrcbK71GKpFPkGgDEYvb"
+			]
+		},
+		"contracts/libraries/SwapMath.sol": {
+			"keccak256": "0xcd310be830646d0d55bef86683847577f742704d227471ad7b4cab3df9c47cf7",
+			"license": "BUSL-1.1",
+			"urls": [
+				"bzz-raw://e6029f7cbb62563f488ee9c4510fee69b5408b64119065d912c1bd682baeef84",
+				"dweb:/ipfs/Qmed5zZvcEbqmDmkyGV2huNzrK3mk8KrF9UQohKWLTcc3n"
+			]
+		},
+		"contracts/libraries/Tick.sol": {
+			"keccak256": "0x473bf9fd987161de1ecf215190db4c94b50eb12ea9ebafecbc7acef1bcd79dee",
+			"license": "BUSL-1.1",
+			"urls": [
+				"bzz-raw://e3e948f35862db5adeaffdb1f7072b51bc570041920e6593da61262eb0ac4817",
+				"dweb:/ipfs/QmUDYpKSzSaFyDiC8AQx3RTzex3bu1W1g53itPyEJZkC1L"
+			]
+		},
+		"contracts/libraries/TickBitmap.sol": {
+			"keccak256": "0x2035bacd76333baa4ef2bbd6423561638e1b7e97cb19be5b4d61feeea3340364",
+			"license": "BUSL-1.1",
+			"urls": [
+				"bzz-raw://55da2e8d44c094b9aa1a40577f9ff32605516ae45ad54e799ec9d570d007a206",
+				"dweb:/ipfs/QmakgjThKgfBTaj6Vvf54oKkxeHqgxKFmyiVbcjstsGDBF"
+			]
+		},
+		"contracts/libraries/TickMath.sol": {
+			"keccak256": "0xda8c2c0b12d2976acfd364453ba5f5bf0117ba3c91175ee9e1067d3fb26944d9",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://3f3d2d7c2723c91830c74d96292f28fc1cfe28d388cdb9c1a5ebadb4c2b96f81",
+				"dweb:/ipfs/QmYU4wk8MEm33wVWR38LoncvR7b8PP1mLuGBKX3dUpYJVE"
+			]
+		},
+		"contracts/libraries/TransferHelper.sol": {
+			"keccak256": "0x162f953ebb769bbb81149732880cef2fa4ae98bb237f31da1165cc5ff5a2154a",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://d5a9d6ebfcf05fe4bb7f1a235c5c067eddda3d520201400aee5b4ee34d8429ec",
+				"dweb:/ipfs/QmeTeACsMnNG9CTZ7AuqxiKtU7cen5F2AifG4p64VeKwxG"
+			]
+		},
+		"contracts/libraries/UnsafeMath.sol": {
+			"keccak256": "0x5f36d7d16348d8c37fe64fda932018d6e5e8acecd054f0f97d32db62d20c6c88",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://4bd4e817ea3d2c26bb2be7e58db3eaa403119562c18d4c09cc92fb31aa231496",
+				"dweb:/ipfs/QmbpjgL8Hf1mhmUyf9hpuPk4noGAggCdTqaRBFKqNF3AQw"
+			]
+		},
+		"contracts/tokens/interfaces/IERC20.sol": {
+			"keccak256": "0x85a22a2fcf2189e5c55b3a3f43a57b75f7e435374ea0fb6ab54006fa3b1fde60",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://b0c9fe7a80dd30aefa5233cd797c8fda85ee1c7b808794fa531d52d78565a683",
+				"dweb:/ipfs/QmfZVWq1U4D3ftKLbgG5BHxdWBf2wXiHRE7cnAif75LtFb"
+			]
+		},
+		"contracts/tokens/interfaces/IWETH9.sol": {
+			"keccak256": "0x8bf953d721c6cf0e9cbc9132b8ab963c4894e536f12c5d3bb113ecee55e08781",
+			"license": "GPL-2.0-or-later",
+			"urls": [
+				"bzz-raw://8f45ae8e6d0a3cda8d640dc8294f8bc6f7e4419699cdd3f52fd423bde51e3126",
+				"dweb:/ipfs/QmZC2Sw3ZM21Tb65gkVWBKMvsZiQwitX1W8dVwcdox2ZAX"
+			]
+		}
+	},
+	"version": 1
+}

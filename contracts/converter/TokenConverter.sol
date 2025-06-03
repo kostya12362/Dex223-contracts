@@ -1,5 +1,34 @@
 pragma solidity =0.8.19;
 
+// ERC-7417 Token Converter and all the related contracts.
+// https://eips.ethereum.org/EIPS/eip-7417
+
+// Written by Dexaran (dexaran@ethereumclassic.org & x.com/Dexaran)
+// ERC-20 token standard contains a known flaw described here: https://medium.com/dex223/known-problems-of-erc20-token-standard-e98887b9532c
+// If a ERC-20 token is transferred to a smart-contract which is not designed to receive them
+// then instead of an error the transfer successfully moves tokens to the balance of the contract.
+// In this case ERC-20 tokens get permanently stuck on the balance of the contract they were deposited to.
+// As of 31 November, 2024 $83,000,000 worth of ERC-20 tokens were lost because of this issue https://dexaran.github.io/erc20-losses/
+// In order to mitigate this problem the Converter and wrapper contracts implement an extraction function which allows the
+// address that deployed them to extract any stuck ERC-20 tokens.
+// Contact information is provided so that anyone who has deposited tokens into the contract can request a token withdrawal.
+
+/* Disclaimer of liability
+YOU ACKNOWLEDGE AND AGREE THAT THE SOFTWARE IS PROVIDED TO YOU ON AN "AS IS" BASIS.
+THE LICENSOR DISCLAIMS ANY AND ALL REPRESENTATIONS AND WARRANTIES, EXPRESS OR IMPLIED
+INCLUDING (WITHOUT LIMITATION) ANY IMPLIED WARRANTIES OF MERCHANTABILITY, OR HARDWARE
+OR SOFTWARE COMPATIBILITY, OR FITNESS FOR A PARTICULAR PURPOSE OR USE, INCLUDING YOUR
+PARTICULAR BUSINESS OR INTENDED USE, OR OF THE SOFTWARE'S RELIABILITY, PERFORMANCE OR
+CONTINUED AVAILABILITY. THE LICENSOR DOES NOT REPRESENT OR WARRANT THAT THE
+SOFTWARE OR EXPORT DATA MADE THEREOF WILL BE FREE FROM ANY DEFECTS OR ERRORS AND THAT ANY SUCH
+EFFECTS OR ERRORS WILL BE CORRECTED, OR THAT IT WILL OPERATE WITHOUT INTERRUPTION.
+YOU AGREE THAT YOU ARE SOLELY RESPONSIBLE FOR ALL COSTS AND EXPENSES ASSOCIATED
+WITH RECTIFICATION, REPAIR OR DAMAGE CAUSED BY SUCH DEFECTS, ERRORS OR INTERRUPTIONS.
+FURTHER, THE LICENSOR DOES NOT REPRESENT AND WARRANT THAT THE SOFTWARE DOES NOT
+INFRINGE THE INTELLECTUAL PROPERTY RIGHT OF ANY OTHER PERSON. YOU ACCEPT
+RESPONSIBILITY TO VERIFY THAT THE SOFTWARE MEETS YOUR SPECIFIC REQUIREMENTS.
+*/
+
 library Address {
     function isContract(address account) internal view returns (bool) {
         // This method relies on extcodesize, which returns 0 for contracts in
@@ -74,18 +103,6 @@ abstract contract IERC223 {
     event Transfer(address indexed from, address indexed to, uint value, bytes data);
 }
 
-interface standardERC20
-{
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-    function totalSupply() external view returns (uint256);
-    function balanceOf(address account) external view returns (uint256);
-    function transfer(address to, uint256 value) external returns (bool);
-    function allowance(address owner, address spender) external view returns (uint256);
-    function approve(address spender, uint256 value) external returns (bool);
-    function transferFrom(address from, address to, uint256 value) external returns (bool);
-}
-
 /**
  * @dev Interface of the ERC20 standard.
  */
@@ -94,7 +111,7 @@ interface IERC223WrapperToken {
     function symbol()   external view returns (string memory);
     function decimals() external view returns (uint8);
     function standard() external view returns (string memory);
-    function origin()   external  view returns (address);
+    function origin()   external view returns (address);
 
     function totalSupply()                                            external view returns (uint256);
     function balanceOf(address account)                               external view returns (uint256);
@@ -113,7 +130,7 @@ interface IERC20WrapperToken {
     function symbol()   external view returns (string memory);
     function decimals() external view returns (uint8);
     function standard() external view returns (string memory);
-    function origin()   external  view returns (address);
+    function origin()   external view returns (address);
 
     function totalSupply()                                         external view returns (uint256);
     function balanceOf(address account)                            external view returns (uint256);
@@ -177,8 +194,6 @@ contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return
-            interfaceId == type(IERC20).interfaceId ||
-            interfaceId == type(standardERC20).interfaceId ||
             interfaceId == type(IERC223WrapperToken).interfaceId ||
             interfaceId == type(IERC223).interfaceId ||
             super.supportsInterface(interfaceId);
@@ -204,8 +219,9 @@ contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
         if(Address.isContract(_to)) {
             IERC223Recipient(_to).tokenReceived(msg.sender, _value, _data);
         }
-        emit Transfer(msg.sender, _to, _value, _data);
-        emit Transfer(msg.sender, _to, _value); // Old ERC20 compatible event. Added for backwards compatibility reasons.
+        emit Transfer(msg.sender, _to, _value); // Old ERC20 compatible event.
+        emit TransferData(_data);               // Log _data in a separate event to keep `event Transfer(...)` compatible
+                                                // with the ERC-20 ecosystem.
 
         return true;
     }
@@ -226,17 +242,18 @@ contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
         if(Address.isContract(_to)) {
             IERC223Recipient(_to).tokenReceived(msg.sender, _value, _empty);
         }
-        emit Transfer(msg.sender, _to, _value, _empty);
-        emit Transfer(msg.sender, _to, _value); // Old ERC20 compatible event. Added for backwards compatibility reasons.
-
+        emit Transfer(msg.sender, _to, _value); // Old ERC20 compatible event.
+                                                // If the function accepts _data parameter then
+                                                // TransferData(...) event is emitted to log data
+                                                // separately from the transfer event.
         return true;
     }
 
-    function name() public view override returns (string memory)   { return IERC20Metadata(wrapper_for).name(); }
-    function symbol() public view override returns (string memory) { return string.concat(IERC20Metadata(wrapper_for).symbol(), "223"); }
-    function decimals() public view override returns (uint8)       { return IERC20Metadata(wrapper_for).decimals(); }
-    function standard() public pure returns (uint32)               { return 223; }
-    function origin() public view returns (address)                { return wrapper_for; }
+    function name()     public view override returns (string memory) { return IERC20Metadata(wrapper_for).name(); }
+    function symbol()   public view override returns (string memory) { return string.concat(IERC20Metadata(wrapper_for).symbol(), "223"); }
+    function decimals() public view override returns (uint8)         { return IERC20Metadata(wrapper_for).decimals(); }
+    function standard() public pure returns (uint32)                 { return 223; }
+    function origin()   public view returns (address)                { return wrapper_for; }
 
 
     /**
@@ -249,6 +266,7 @@ contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
         require(msg.sender == creator, "Wrapper Token: Only the creator contract can mint wrapper tokens.");
         balances[_recipient] += _quantity;
         _totalSupply += _quantity;
+        emit Transfer(address(0x0), _recipient, _quantity);
     }
 
     /**
@@ -286,11 +304,22 @@ contract ERC223WrapperToken is IERC223, ERC165, ERC20Rescue
         allowances[_from][msg.sender] -= _value;
         balances[_to] += _value;
 
-        emit Transfer(_from, _to, _value);
+        emit Transfer(_from, _to, _value);      // ERC20 compatible event.
+                                                // transferFrom never accepts _data
+                                                // so we are not emitting TransferData(...) event here.
 
         return true;
     }
 }
+
+
+// Disclaimer of liability
+// ERC-20 standard contains a known security problem.
+// Transferring ERC-20 tokens to any smart-contract which is not designed to receive tokens
+// will resulte in a permanent loss of tokens.
+// It is not possible to prevent this on the token's side (other than not to implement ERC-20 standard).
+// This service is built to ensure the transition process that would allow to
+// stop using ERC-20 tokens and replace them with ERC-223 (a safer standard) instead.
 
 contract ERC20WrapperToken is IERC20, ERC165, ERC20Rescue
 {
@@ -311,11 +340,11 @@ contract ERC20WrapperToken is IERC20, ERC165, ERC20Rescue
 
     function balanceOf(address _owner) public view override returns (uint256) { return balances[_owner]; }
 
-    function name()        public view  returns (string memory) { return IERC20Metadata(wrapper_for).name(); }
-    function symbol()      public view  returns (string memory) { return string.concat(IERC223(wrapper_for).symbol(), "20"); }
-    function decimals()    public view  returns (uint8)         { return IERC20Metadata(wrapper_for).decimals(); }
-    function totalSupply() public view override returns (uint256)       { return _totalSupply; }
-    function origin()      public view returns (address)                { return wrapper_for; }
+    function name()        public view returns (string memory)    { return IERC20Metadata(wrapper_for).name(); }
+    function symbol()      public view returns (string memory)    { return string.concat(IERC223(wrapper_for).symbol(), "20"); }
+    function decimals()    public view returns (uint8)            { return IERC20Metadata(wrapper_for).decimals(); }
+    function totalSupply() public view override returns (uint256) { return _totalSupply; }
+    function origin()      public view returns (address)          { return wrapper_for; }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return
@@ -328,7 +357,9 @@ contract ERC20WrapperToken is IERC20, ERC165, ERC20Rescue
     {
         balances[msg.sender] = balances[msg.sender] - _value;
         balances[_to] = balances[_to] + _value;
-        emit Transfer(msg.sender, _to, _value);
+        emit Transfer(msg.sender, _to, _value); // ERC20 compatible event.
+                                                // ERC20 transfer function does not accept _data
+                                                // so we are not emitting the TransferData(...) event here.
         return true;
     }
 
@@ -337,6 +368,7 @@ contract ERC20WrapperToken is IERC20, ERC165, ERC20Rescue
         require(msg.sender == creator, "Wrapper Token: Only the creator contract can mint wrapper tokens.");
         balances[_recipient] += _quantity;
         _totalSupply += _quantity;
+        emit Transfer(address(0x0), _recipient, _quantity);
     }
 
     function burn(address _from, uint256 _quantity) external
@@ -376,7 +408,7 @@ contract ERC20WrapperToken is IERC20, ERC165, ERC20Rescue
     }
 }
 
-contract TokenStandardConverter is IERC223Recipient
+contract ERC7417TokenConverter is IERC223Recipient
 {
     event ERC223WrapperCreated(address indexed _token, address indexed _ERC223Wrapper);
     event ERC20WrapperCreated(address indexed _token, address indexed _ERC20Wrapper);
@@ -542,6 +574,7 @@ contract TokenStandardConverter is IERC223Recipient
     function extractStuckERC20(address _token) external 
     {
         require(msg.sender == address(0x01000B5fE61411C466b70631d7fF070187179Bbf));
+        require(address(erc20Wrappers[_token]) == address(0), "Error: provided token is not an ERC-20");
 
         safeTransfer(_token, address(0x01000B5fE61411C466b70631d7fF070187179Bbf), IERC20(_token).balanceOf(address(this)) - erc20Supply[_token]);
     }

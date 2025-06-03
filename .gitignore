@@ -2,3 +2,7 @@
 /cache/
 /typechain-types/
 /package-lock.json
+node_modules
+.env
+/.idea
+/.DS_Store
