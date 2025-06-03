@@ -158,9 +158,9 @@ contract MarginModule {
         router = ISwapRouter(_router);
     }
 
-    function addTokenlist(address[] calldata tokens) public returns(uint256 id) {
+    function addTokenlist(address[] calldata tokens, bool isContract) public returns(uint256 id) {
         Tokenlist memory list = Tokenlist(
-            false,
+            isContract,
             tokens
         );
         tokenlists.push(list);
