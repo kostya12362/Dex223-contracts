@@ -222,7 +222,7 @@ contract MarginModule {
 
     function orderDepositEth(uint256 orderId) public payable {
         require(orders[orderId].owner == msg.sender);
-        require(isOrderOpen(orderId));
+        require(isOrderOpen(orderId), "Order is expired");
         require(orders[orderId].baseAsset == address(0));
 
         orders[orderId].balance += msg.value;
@@ -231,7 +231,7 @@ contract MarginModule {
 
     function orderDeposit(uint256 orderId, uint256 amount) public {
         require(orders[orderId].owner == msg.sender);
-        require(isOrderOpen(orderId));
+        require(isOrderOpen(orderId), "Order is expired");
         require(orders[orderId].baseAsset != address(0));
 
         _receiveAsset(orders[orderId].baseAsset, amount);
@@ -251,7 +251,7 @@ contract MarginModule {
     function orderWithdraw(uint256 orderId, uint256 amount) public {
         require(orders[orderId].owner == msg.sender);
         // withdrawal is possible only when the order is closed
-        require(!isOrderOpen(orderId));
+        require(!isOrderOpen(orderId), "Order is still active");
         require(orders[orderId].balance >= amount);
 
         orders[orderId].balance -= amount;
@@ -342,7 +342,7 @@ contract MarginModule {
 
     function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public payable {
 
-        require(isOrderOpen(_orderId));
+        require(isOrderOpen(_orderId), "Order is expired");
 
         Order storage order = orders[_orderId];
 
