@@ -614,14 +614,15 @@ contract MarginModule {
 
         // base asset(at index 0) balance
         uint256 totalValueInBaseAsset = position.balances[0];
+        address baseAsset = position.assets[0];
 
         for (uint256 i = 1; i < position.assets.length; i++) {
             address asset = position.assets[i];
             uint256 balance = position.balances[i];
 
-            (address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, position.assets[0]);
-            uint256 price = oracle.getPrice(poolAddress);
-            totalValueInBaseAsset += balance * price;
+            (address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, baseAsset);
+            uint256 estimatedAsBase = oracle.getAmountOut(poolAddress, baseAsset, asset, balance);
+            totalValueInBaseAsset += estimatedAsBase;
         }
 
         return totalValueInBaseAsset < requiredAmount;
@@ -795,8 +796,8 @@ contract MarginModule {
             Order storage order = orders[orderId];
             Oracle oracle = Oracle(order.oracle);
             (address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, baseAsset);
-            uint256 price = oracle.getPrice(poolAddress);
-            baseAmount = amount * price;
+            uint256 estimatedAsBase = oracle.getAmountOut(poolAddress, baseAsset, asset, amount);
+            baseAmount = estimatedAsBase;
         }
 
         return baseAmount;
