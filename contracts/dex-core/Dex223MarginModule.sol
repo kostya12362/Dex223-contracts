@@ -423,10 +423,15 @@ contract MarginModule {
         uint256 _whitelistId2,
         uint256 _amount,
         address _asset2,
-        uint24 _feeTier) public {
+        uint24 _feeTier
+    ) public {
 
-        // Only allow the owner of the position to perform trading operations with it.
-        require(positions[_positionId].owner == msg.sender);
+        Position storage position = positions[_positionId];
+
+        if (msg.sender != position.owner) {
+            require(msg.sender == position.liquidator && position.frozenTime > 0, "Only owner or liquidator");
+        }
+
         address _asset1 = positions[_positionId].assets[_assetId1];
 
         _validateAsset(_positionId, _asset1, _whitelistId1);
@@ -748,8 +753,6 @@ contract MarginModule {
             
             // Final attempt to pay back after all swaps
             requiredAmount = _paybackBaseAsset(position);
-            
-            require(requiredAmount == 0, "Insufficient funds to close position");
         }
 
         if (success) {
