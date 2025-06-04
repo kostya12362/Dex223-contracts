@@ -684,6 +684,7 @@ contract MarginModule {
         }
 
         require(position.frozenTime == 0, "Position frozen");
+        require(subjectToLiquidation(positionId) == false, "Subject to liquidation");
         position.open = false;
 
         uint256 requiredAmount = _paybackBaseAsset(position);
