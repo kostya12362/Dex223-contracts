@@ -869,17 +869,20 @@ contract MarginModule {
         Position storage position = positions[positionId];
         Order storage order = orders[position.orderId];
         Oracle oracle = Oracle(order.oracle);
-        
+
         (address pool,, uint24 fee) = oracle.findPoolWithHighestLiquidity(asset, order.baseAsset);
         require(pool != address(0), "No pool available");
-    
+
         (, address token0) = IDex223Pool(pool).token0();
         (, address token1) = IDex223Pool(pool).token1();
-    
+
+        uint256 idInWl0 = getIdFromTokenlist(order.whitelist, asset);
+        uint256 idInWl1 = getIdFromTokenlist(order.whitelist, order.baseAsset);
+
         if (token0 == asset || token1 == asset) {
-            marginSwap223(positionId, getAssetId(positionId, asset), 0, 0, amount, order.baseAsset, fee);
+            marginSwap223(positionId, getAssetId(positionId, asset), idInWl0, idInWl1, amount, order.baseAsset, fee);
         } else {
-            marginSwap(positionId, getAssetId(positionId, asset), 0, 0, amount, order.baseAsset, fee);
+            marginSwap(positionId, getAssetId(positionId, asset), idInWl0, idInWl1, amount, order.baseAsset, fee);
         }
 
         // Return new base asset balance
@@ -918,4 +921,22 @@ contract MarginModule {
     function getPositionsLength() public view returns (uint256) {
         return positionIndex;
     }
+
+    function getIdFromTokenlist(uint256 listId, address asset) public view returns(uint256 assetId) {
+        Tokenlist storage list = tokenlists[listId];
+
+        if (list.isContract == true) {
+            return 0;
+        }
+
+        assetId = list.tokens.length;
+        for (uint256 i = 0; i < list.tokens.length; i++) {
+            if (list.tokens[i] == asset) {
+                assetId = i;
+                break;
+            }
+        }
+        require(assetId < list.tokens.length);
+    }
+
 }
