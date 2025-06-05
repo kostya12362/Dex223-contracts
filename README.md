@@ -25,9 +25,9 @@
 | TOKEN_CONVERTER     | [0xe831FDB60Dc18c264f1B45cadAFD5f2f2993EE83](https://sepolia.etherscan.io/address/0xe831FDB60Dc18c264f1B45cadAFD5f2f2993EE83#code) |
 | POOL_LIBRARY        | [0x5Aac8Cc2A2EDf140b9c729dAb31496B9F2a4b511](https://sepolia.etherscan.io/address/0x5Aac8Cc2A2EDf140b9c729dAb31496B9F2a4b511#code) |
 | FACTORY             | [0x6a17Ec0AC537e6e30c8425DC4C253F7D5926E66B](https://sepolia.etherscan.io/address/0x6a17Ec0AC537e6e30c8425DC4C253F7D5926E66B#code) |
-| SWAP_ROUTER         | [0x0300e1cb4EA4F5710665D3a51643888EC9FC3E2c](https://sepolia.etherscan.io/address/0x0300e1cb4EA4F5710665D3a51643888EC9FC3E2c#code) |
+| SWAP_ROUTER         | [0x6d1a12d5921692f240CcDD9d4b7cAc2cCeD1BEd2](https://sepolia.etherscan.io/address/0x6d1a12d5921692f240CcDD9d4b7cAc2cCeD1BEd2#code) |
 | POSITION_DESCRIPTOR | [0x9F970c7107140B546AfF595f5Ddd093d5460f131](https://sepolia.etherscan.io/address/0x9F970c7107140B546AfF595f5Ddd093d5460f131#code) |
-| POSITION_MANAGER    | [0x4db384f1AeeB8Cc5dd193E255BE5F10a69034c8c](https://sepolia.etherscan.io/address/0x4db384f1AeeB8Cc5dd193E255BE5F10a69034c8c#code) |
+| POSITION_MANAGER    | [0x091249267d085055fa2f281fa3f6c0cf4bf70bae](https://sepolia.etherscan.io/address/0x091249267d085055fa2f281fa3f6c0cf4bf70bae#code) |
 | POOL_INIT_CODE_HASH | 0x9966400177a96c358783e5915045e9e9f19d514dadb45a9e599b5f6295cbfd64                                                        |
 | POOL_USDC_WETH      | [0x02e8dc65c81d4064d89ada57f3c6880aa4f83c66](https://sepolia.etherscan.io/address/0x02e8dc65c81d4064d89ada57f3c6880aa4f83c66#code) |
 
