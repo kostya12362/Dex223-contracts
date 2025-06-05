@@ -31,6 +31,18 @@
 | POOL_INIT_CODE_HASH | 0x9966400177a96c358783e5915045e9e9f19d514dadb45a9e599b5f6295cbfd64                                                        |
 | POOL_USDC_WETH      | [0x02e8dc65c81d4064d89ada57f3c6880aa4f83c66](https://sepolia.etherscan.io/address/0x02e8dc65c81d4064d89ada57f3c6880aa4f83c66#code) |
 
+## Deprecated Ethereum mainnet deployment
+
+| Name                | Address                                                                                                                       |
+|---------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| WETH9               | [0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa](https://sepolia.etherscan.io/address/0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa#code) |
+| TOKEN_CONVERTER     | [0xe831FDB60Dc18c264f1B45cadAFD5f2f2993EE83](https://sepolia.etherscan.io/address/0xe831FDB60Dc18c264f1B45cadAFD5f2f2993EE83#code) |
+| POOL_LIBRARY        | [0x1bc27faa75002e1f034e57c9e62236c2e0f7ed16](https://sepolia.etherscan.io/address/0x1bc27faa75002e1f034e57c9e62236c2e0f7ed16#code) |
+| FACTORY             | [0x6228e33cea2a9bdfb7dfe09087841cb56f683f04](https://sepolia.etherscan.io/address/0x6228e33cea2a9bdfb7dfe09087841cb56f683f04#code) |
+| SWAP_ROUTER         | [0xBE65a8dabc45d394E40B81977485096F4ee17558](https://sepolia.etherscan.io/address/0xBE65a8dabc45d394E40B81977485096F4ee17558#code) |
+| POSITION_MANAGER    | [0xca666abfdf2d31a3f4efff8ced7c6504389e51ba](https://sepolia.etherscan.io/address/0xca666abfdf2d31a3f4efff8ced7c6504389e51ba#code) |
+| POOL_INIT_CODE_HASH | 0xcaa18af2f32aa83067a3bf5052fe7f4e6025a374579f128fd30bff2c48511b61                                                        |
+
 
 ## Helpers
 
