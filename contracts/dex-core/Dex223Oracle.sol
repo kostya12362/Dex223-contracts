@@ -23,23 +23,34 @@ contract Oracle {
         return tick;
     }
 
-    function getPrice(address poolAddress) public view returns(uint256 price) {
-        int24 tick = getSpotPriceTick(poolAddress);
+    // sell token1, buy token0
+    function getPrice(address poolAddress, address buy, address sell) public view returns(uint256, bool) {
+        uint160 sqrtPriceX96 = getSqrtPriceX96(poolAddress);
+        uint256 priceX96 = uint256(sqrtPriceX96) * uint256(sqrtPriceX96);
 
-        int24 absTick = tick >=0 ? tick : -tick;
-        uint256 price_ = 10**18;
+        // if buy token0 rather than token1,  need to invert the price 
+        bool needToInverse = sell < buy;
 
-        for(int24 i = 0; i < absTick; i++) {
-            price_ = (price_ * 10001) / 10000;
-        }
+        return (priceX96, needToInverse);
+    }
 
-        if (tick < 0) {
-            price = (10**36) / price_;
+    // out = buy, in = sell
+    function getAmountOut(
+        address poolAddress,
+        address buy,
+        address sell,
+        uint256 amountForSell
+    ) public view returns(uint256 amountForBuy) {
+
+        (uint256 priceX96, bool needToInverse) = getPrice(poolAddress, buy, sell);
+
+        if (needToInverse) {
+            amountForBuy = (amountForSell * priceX96) >> 192;
         } else {
-            price = price_;
+            amountForBuy = (amountForSell << 192) / priceX96;
         }
 
-        return price;
+        return amountForBuy;
     }
 
     IUniswapV3Factory public immutable factory;
@@ -52,25 +63,25 @@ contract Oracle {
 
     function findPoolWithHighestLiquidity(
         address tokenA,
-	address tokenB
+        address tokenB
     ) external view returns (address poolAddress, uint128 liquidity, uint24 fee) {
         require(tokenA != tokenB);
-	require(tokenA != address(0));
+        require(tokenA != address(0));
 
-	(address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
 
-	for (uint i = 0; i < feeTiers.length; i++) {
-	    address pool = factory.getPool(token0, token1, feeTiers[i]);
-	    if (pool != address(0)) {
-	        uint128 currentLiquidity = IUniswapV3Pool(pool).liquidity();
-		if (currentLiquidity > liquidity) {
-		    liquidity = currentLiquidity;
-		    poolAddress = pool;
-		    fee = feeTiers[i];
-		}
-	    }
-	}
+        for (uint i = 0; i < feeTiers.length; i++) {
+            address pool = factory.getPool(token0, token1, feeTiers[i]);
+            if (pool != address(0)) {
+                uint128 currentLiquidity = IUniswapV3Pool(pool).liquidity();
+                if (currentLiquidity >= liquidity) {
+                    liquidity = currentLiquidity;
+                    poolAddress = pool;
+                    fee = feeTiers[i];
+                }
+            }
+        }
 
-	require(poolAddress != address(0));
+        require(poolAddress != address(0));
     }
 }
