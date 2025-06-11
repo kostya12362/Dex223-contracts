@@ -101,6 +101,9 @@ contract MarginModule {
         address[] tokens;
     }
 
+    // TODO: Rename for better readability
+    //       liquidation parameters are not related
+    //       to the "end of orders lifecycle".
     struct OrderExpiration {
         uint256 liquidationRewardAmount;
         address liquidationRewardAsset;
@@ -217,7 +220,7 @@ contract MarginModule {
         require(order.collateralAssets.length == 0);
         require(collateral.length > 0);
 
-        order.collateralAssets = collateral; 
+        order.collateralAssets = collateral;
     }
 
     function orderDepositEth(uint256 orderId) public payable {
@@ -737,7 +740,7 @@ contract MarginModule {
 
     function _liquidate(uint256 positionId) internal {
         Position storage position = positions[positionId];
-        Order storage order = orders[position.orderId];
+        //Order storage order = orders[position.orderId];
         bool success = true;
 
         uint256 requiredAmount = _paybackBaseAsset(position);
