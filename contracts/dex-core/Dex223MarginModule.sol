@@ -110,6 +110,17 @@ contract MarginModule {
         uint32 deadline;
     } 
 
+    struct SwapData {
+        address pool;
+        address tokenIn;
+        address tokenIn223;
+        address tokenOut;
+        uint24 fee;
+        bool zeroForOne;
+        bool prefer223Out;
+        uint160 sqrtPriceLimitX96;
+    }
+
     struct Order {
         address owner;
         uint256 id;
@@ -469,17 +480,6 @@ contract MarginModule {
         reduceAsset(_positionId, _asset1, _amount);
 
         emit MarginSwap(_positionId, _asset1, _asset2, _amount, amountOut);
-    }
-
-    struct SwapData {
-        address pool;
-        address tokenIn;
-        address tokenIn223;
-        address tokenOut;
-        uint24 fee;
-        bool zeroForOne;
-        bool prefer223Out;
-        uint160 sqrtPriceLimitX96;
     }
 
     function resolveTokenOut(
