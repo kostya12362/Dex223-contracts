@@ -34,6 +34,7 @@ contract MarginModule {
     ISwapRouter public router;
 
     mapping (uint256 => Order) public orders;
+    mapping (uint256 => OrderStatus) public order_status;
     mapping (uint256 => Position) public positions;
     mapping (address => mapping(address => uint256)) public erc223deposit;
     Tokenlist[] public tokenlists;
@@ -138,6 +139,12 @@ contract MarginModule {
         address[] collateralAssets;
     }
 
+    struct OrderStatus
+    {
+        bool alive;
+        uint8 positions;
+    }
+
     struct Position {
         uint256 orderId;
         address owner;
@@ -221,6 +228,11 @@ contract MarginModule {
             empty
         );
 
+        order_status[orderIndex] = OrderStatus(
+            true,
+            0
+        );
+
         emit OrderCreated(orderIndex, msg.sender, asset, interestRate, duration, minLoan, leverage);
         orderIndex++;
     }
@@ -232,6 +244,12 @@ contract MarginModule {
         require(collateral.length > 0);
 
         order.collateralAssets = collateral;
+    }
+
+    function setOrderStatus(uint256 id, bool _status) public {
+        Order storage order = orders[id];
+        require(order.owner == msg.sender);
+        order_status[id].alive = _status;
     }
 
     function orderDepositEth(uint256 orderId) public payable {
@@ -259,13 +277,13 @@ contract MarginModule {
         bool isActivated = order.collateralAssets.length > 0;
         bool isNotExpired = deadline > block.timestamp;
 
-        return isActivated && isNotExpired;
+        return isActivated && isNotExpired && order_status[id].alive;
     }
 
     function orderWithdraw(uint256 orderId, uint256 amount) public {
         require(orders[orderId].owner == msg.sender);
         // withdrawal is possible only when the order is closed
-        require(!isOrderOpen(orderId), "Order is still active");
+        //require(!isOrderOpen(orderId), "Order is still active");
         require(orders[orderId].balance >= amount);
 
         orders[orderId].balance -= amount;
@@ -428,6 +446,12 @@ contract MarginModule {
 
         require(!subjectToLiquidation(positionIndex));
         positionIndex++;
+
+        // Increment the amount of active positions associated with the parent order,
+        // we are tracking the active positions to make sure that the Order owner
+        // will not modify an Order that has any active positins.
+        order_status[_orderId].positions++;
+
         emit PositionOpened(positionIndex, msg.sender, _amount, order.baseAsset);
     }
 
@@ -709,6 +733,11 @@ contract MarginModule {
             
             require(requiredAmount == 0, "Insufficient funds to close position");
         }
+
+        // Once the position is closed
+        // we can decrease the number of active positions for the parent order.
+        // If the number of active positions is 0 then the order owner can modify the order.
+        order_status[position.orderId].positions--;
     }
 
     function positionWithdraw(uint256 positionId, address asset) public {
@@ -771,7 +800,12 @@ contract MarginModule {
             emit PositionLiquidated(positionId, msg.sender, rewardAmount);
         }
 
-        position.open = false; 
+        position.open = false;
+
+        // Once the position is liquidated
+        // we can decrease the number of active positions for the parent order.
+        // If the number of active positions is 0 then the order owner can modify the order.
+        order_status[position.orderId].positions--;
     }
 
     /* Internal functions */
