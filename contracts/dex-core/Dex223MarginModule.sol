@@ -278,6 +278,7 @@ contract MarginModule {
         emit OrderWithdraw(orderId, orders[orderId].baseAsset, amount);
     }
 
+    // TODO: Anyone can deposit funds to a position, not only the owner of the position.
     function positionDeposit(uint256 positionId, address asset, uint256 idInWhitelist,  uint256 amount) public {
         require(positions[positionId].owner == msg.sender, "Only the owner can deposit into this position");
         require(amount > 0, "Deposit must exceed zero");
