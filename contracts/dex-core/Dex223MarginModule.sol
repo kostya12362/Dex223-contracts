@@ -26,6 +26,14 @@ interface IDex223Pool {
     ) external returns (uint256 amountOut);
 }
 
+contract WhitelistIDHelper
+{
+    function calcTokenListsID(address[] calldata tokens, bool isContract) public view returns(bytes32) {
+        bytes32 _hash = keccak256(abi.encode(isContract, tokens));
+        return _hash;
+    }
+}
+
 contract MarginModule {
     uint256 constant private MAX_UINT8 = 255;
     uint256 constant private MAX_FREEZE_DURATION = 1 hours;
