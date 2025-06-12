@@ -803,6 +803,9 @@ contract MarginModule {
         }
 
         // Payment of liquidation reward
+        // TODO: Fix reading data from positions parenting Order
+        //       because the Order owner can update configuration
+        //       after the position was closed.
         Order storage order = orders[position.orderId];
         (uint256 rewardAmount, address rewardAsset, ) = getOrderExpirationData(position.orderId);
         if (rewardAsset == address(0)) {
