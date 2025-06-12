@@ -421,6 +421,7 @@ contract MarginModule {
         require(isOrderOpen(_orderId), "Order is expired");
 
         Order storage order = orders[_orderId];
+        require(tokenlists[order.whitelist].tokens.length != 0, "Orders whitelist is empty");
 
         require(_collateralIdx < order.collateralAssets.length);
         address collateralAsset = order.collateralAssets[_collateralIdx];
