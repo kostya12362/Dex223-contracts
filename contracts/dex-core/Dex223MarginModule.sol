@@ -37,7 +37,7 @@ contract MarginModule {
     mapping (uint256 => OrderStatus) public order_status;
     mapping (uint256 => Position) public positions;
     mapping (address => mapping(address => uint256)) public erc223deposit;
-    Tokenlist[] public tokenlists;
+    mapping(bytes32 => Tokenlist) public tokenlists;
 
     uint256 internal orderIndex;
     uint256 internal positionIndex;
@@ -125,7 +125,7 @@ contract MarginModule {
     struct Order {
         address owner;
         uint256 id;
-        uint256 whitelist;
+        bytes32 whitelist;
         // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35%
         uint256 interestRate;
         uint256 duration;
@@ -179,17 +179,16 @@ contract MarginModule {
         router = ISwapRouter(_router);
     }
 
-    function addTokenlist(address[] calldata tokens, bool isContract) public returns(uint256 id) {
-        Tokenlist memory list = Tokenlist(
-            isContract,
-            tokens
-        );
-        tokenlists.push(list);
-        return tokenlists.length - 1;
+    function addTokenlist(address[] calldata tokens, bool isContract) public returns(bytes32) {
+        
+        //tokenlists.push(list);
+        bytes32 _hash = keccak256(abi.encode(tokens));
+        tokenlists[_hash] = Tokenlist(isContract, tokens);
+        return _hash;
     }
 
     function createOrder(
-        uint256 whitelistId,
+        bytes32 whitelistId,
         uint256 interestRate,
         uint256 duration,
         uint256 minLoan,
@@ -253,7 +252,7 @@ contract MarginModule {
         order_status[_orderId].alive = _status;
     }
 
-    function modifyOrder(uint256 _orderId, uint256 _whitelist, uint256 _interestRate, uint256 _duration, uint256 _minLoan, uint16 _currencyLimit, uint8 _leverage, address _oracle, uint256 _liquidationRewardAmount, address _liquidationRewardAsset, uint32 _deadline) public 
+    function modifyOrder(uint256 _orderId, bytes32 _whitelist, uint256 _interestRate, uint256 _duration, uint256 _minLoan, uint16 _currencyLimit, uint8 _leverage, address _oracle, uint256 _liquidationRewardAmount, address _liquidationRewardAsset, uint32 _deadline) public 
     {
         Order storage order = orders[_orderId];
         require(order.owner == msg.sender);
@@ -967,10 +966,11 @@ contract MarginModule {
     }
 
     // view functions
-
+/*
     function getTokenlistsLength() public view returns (uint256) {
         return tokenlists.length;
     }
+*/
 
 
     function getPositionAssets(uint256 id) public view returns (address[] memory) {
@@ -999,8 +999,8 @@ contract MarginModule {
         return positionIndex;
     }
 
-    function getIdFromTokenlist(uint256 listId, address asset) public view returns(uint256 assetId) {
-        Tokenlist storage list = tokenlists[listId];
+    function getIdFromTokenlist(bytes32 _listId, address asset) public view returns(uint256 assetId) {
+        Tokenlist storage list = tokenlists[_listId];
 
         if (list.isContract == true) {
             return 0;
