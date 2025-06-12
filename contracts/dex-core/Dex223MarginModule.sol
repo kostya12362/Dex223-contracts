@@ -98,6 +98,7 @@ contract MarginModule {
     );
    
     struct Tokenlist {
+        bool exists;
         bool isContract;
         address[] tokens;
     }
@@ -180,10 +181,10 @@ contract MarginModule {
     }
 
     function addTokenlist(address[] calldata tokens, bool isContract) public returns(bytes32) {
-        
         //tokenlists.push(list);
-        bytes32 _hash = keccak256(abi.encode(tokens));
-        tokenlists[_hash] = Tokenlist(isContract, tokens);
+        bytes32 _hash = keccak256(abi.encode(isContract, tokens));
+        if(tokenlists[_hash].exists) { return _hash; }  // No need to waste gas if the same exact list already exists.
+        tokenlists[_hash] = Tokenlist(true, isContract, tokens);
         return _hash;
     }
 
