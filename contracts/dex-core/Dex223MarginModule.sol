@@ -246,10 +246,45 @@ contract MarginModule {
         order.collateralAssets = collateral;
     }
 
-    function setOrderStatus(uint256 id, bool _status) public {
-        Order storage order = orders[id];
+    function setOrderStatus(uint256 _orderId, bool _status) public
+    {
+        Order storage order = orders[_orderId];
         require(order.owner == msg.sender);
-        order_status[id].alive = _status;
+        order_status[_orderId].alive = _status;
+    }
+
+    function modifyOrder(uint256 _orderId, uint256 _whitelist, uint256 _interestRate, uint256 _duration, uint256 _minLoan, uint16 _currencyLimit, uint8 _leverage, address _oracle, uint256 _liquidationRewardAmount, address _liquidationRewardAsset, uint32 _deadline) public 
+    {
+        Order storage order = orders[_orderId];
+        require(order.owner == msg.sender);
+        require(order_status[_orderId].positions == 0, "Cannot modify an Order which parents active positions");
+
+/*
+    struct Order {
+        address owner;
+        uint256 id;
+        uint256 whitelist;
+        // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35%
+        uint256 interestRate;
+        uint256 duration;
+        uint256 minLoan; // Protection of liquidation process from overload.
+        address baseAsset;
+        uint16 currencyLimit;
+        uint8 leverage;
+        address oracle;
+        uint256 balance;
+        OrderExpiration expirationData;
+        address[] collateralAssets;
+    }
+*/
+        order.whitelist     = _whitelist;
+        order.interestRate  = _interestRate;
+        order.duration      = _duration;
+        order.minLoan       = _minLoan;
+        order.currencyLimit = _currencyLimit;
+        order.leverage      = _leverage;
+        order.oracle        = _oracle;
+        order.expirationData = OrderExpiration(_liquidationRewardAmount, _liquidationRewardAsset, _deadline);
     }
 
     function orderDepositEth(uint256 orderId) public payable {
