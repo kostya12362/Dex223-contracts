@@ -73,6 +73,10 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         require(tokenB_erc223 != address(0));
 
         // pool correctness safety checks via Converter.
+        // identifyTokens(..) function attempts to call the `standard` function of the examinable token
+        // which is guaranteed to fail in case the examinable token is ERC-20.
+        // This leads blockchain explorers (such as Etherscan) to indicate a yellow warning
+        // on a pool creation transaction.
         identifyTokens(tokenA_erc20, tokenA_erc223);
         identifyTokens(tokenB_erc20, tokenB_erc223);
 
