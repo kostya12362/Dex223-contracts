@@ -196,7 +196,24 @@ contract MarginModule {
         return _hash;
     }
 
+    struct OrderParams
+    {
+        bytes32 whitelistId;
+        uint256 interestRate;
+        uint256 duration;
+        uint256 minLoan;
+        uint256 liquidationRewardAmount;
+        address liquidationRewardAsset;
+        address asset;
+        uint32 deadline;
+        uint16 currencyLimit;
+        uint8 leverage;
+        address oracle;
+        address[] collateral;
+    }
+
     function createOrder(
+        /*
         bytes32 whitelistId,
         uint256 interestRate,
         uint256 duration,
@@ -208,32 +225,33 @@ contract MarginModule {
         uint16 currencyLimit,
         uint8 leverage,
         address oracle
+        */
+        OrderParams memory params
     ) public {
 
-        require(leverage > 1);
-        require(deadline > block.timestamp);
-        address[] memory empty;
+        require(params.leverage > 1);
+        require(params.deadline > block.timestamp);
 
         OrderExpiration memory expirationData = OrderExpiration(
-            liquidationRewardAmount,
-            liquidationRewardAsset,
-            deadline
+            params.liquidationRewardAmount,
+            params.liquidationRewardAsset,
+            params.deadline
         );
 
         orders[orderIndex] = Order(
             msg.sender,
             orderIndex,
-            whitelistId,
-            interestRate,
-            duration,
-            minLoan,
-            asset,
-            currencyLimit,
-            leverage,
-            oracle,
+            params.whitelistId,
+            params.interestRate,
+            params.duration,
+            params.minLoan,
+            params.asset,
+            params.currencyLimit,
+            params.leverage,
+            params.oracle,
             0,
             expirationData,
-            empty
+            params.collateral
         );
 
         order_status[orderIndex] = OrderStatus(
@@ -241,10 +259,12 @@ contract MarginModule {
             0
         );
 
-        emit OrderCreated(orderIndex, msg.sender, asset, interestRate, duration, minLoan, leverage);
+        emit OrderCreated(orderIndex, msg.sender, params.asset, params.interestRate, params.duration, params.minLoan, params.leverage);
         orderIndex++;
     }
 
+    // ActivateOrder is unnecessary since we can set everything properly with createOrder
+    // since the implementation of OrderParams that bypasses stack depth limits.
     function activateOrder(uint256 id, address[] calldata collateral) public {
         Order storage order = orders[id];
         require(order.owner == msg.sender);
