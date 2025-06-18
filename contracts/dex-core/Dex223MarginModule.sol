@@ -26,6 +26,21 @@ interface IDex223Pool {
     ) external returns (uint256 amountOut);
 }
 
+
+contract IWETH9 {
+    // WETH contract interface valid for https://etherscan.io/address/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+    event  Approval(address indexed src, address indexed guy, uint wad);
+    event  Transfer(address indexed src, address indexed dst, uint wad);
+    event  Deposit(address indexed dst, uint wad);
+    event  Withdrawal(address indexed src, uint wad);
+
+    mapping (address => uint)                       public  balanceOf;
+
+    //function() public payable;   // <-- WETH contract supports a permissive fallback function.
+    //function deposit() external payable;
+    //function withdraw(uint wad) external;
+}
+
 contract WhitelistIDHelper
 {
     function calcTokenListsID(address[] calldata tokens, bool isContract) public view returns(bytes32) {
@@ -183,6 +198,12 @@ contract MarginModule {
         address erc223;
     }
 
+    modifier onlyOrderOwner(uint256 _orderId)
+    {
+        require(orders[_orderId].owner == msg.sender);
+        _;
+    }
+
     constructor(address _factory, address _router) {
         factory = IDex223Factory(_factory);
         router = ISwapRouter(_router);
@@ -227,7 +248,7 @@ contract MarginModule {
         address oracle
         */
         OrderParams memory params
-    ) public {
+    ) public returns (bool success){
 
         require(params.leverage > 1);
         require(params.deadline > block.timestamp);
@@ -261,12 +282,13 @@ contract MarginModule {
 
         emit OrderCreated(orderIndex, msg.sender, params.asset, params.interestRate, params.duration, params.minLoan, params.leverage);
         orderIndex++;
+        return true;
     }
 
     // ActivateOrder is unnecessary since we can set everything properly with createOrder
     // since the implementation of OrderParams that bypasses stack depth limits.
-    function activateOrder(uint256 id, address[] calldata collateral) public {
-        Order storage order = orders[id];
+    function activateOrder(uint256 _orderId, address[] calldata collateral) public onlyOrderOwner(_orderId) {
+        Order storage order = orders[_orderId];
         require(order.owner == msg.sender);
         require(order.collateralAssets.length == 0);
         require(collateral.length > 0);
@@ -274,17 +296,28 @@ contract MarginModule {
         order.collateralAssets = collateral;
     }
 
-    function setOrderStatus(uint256 _orderId, bool _status) public
+    function setOrderStatus(uint256 _orderId, bool _status) public onlyOrderOwner(_orderId)
     {
         Order storage order = orders[_orderId];
         require(order.owner == msg.sender);
         order_status[_orderId].alive = _status;
     }
 
-    function modifyOrder(uint256 _orderId, bytes32 _whitelist, uint256 _interestRate, uint256 _duration, uint256 _minLoan, uint16 _currencyLimit, uint8 _leverage, address _oracle, uint256 _liquidationRewardAmount, address _liquidationRewardAsset, uint32 _deadline) public 
+    function modifyOrder(uint256 _orderId,
+                         bytes32 _whitelist,
+                         uint256 _interestRate,
+                         uint256 _duration,
+                         uint256 _minLoan,
+                         uint16 _currencyLimit,
+                         uint8 _leverage,
+                         address _oracle,
+                         uint256 _liquidationRewardAmount,
+                         address _liquidationRewardAsset,
+                         uint32 _deadline) 
+            public 
+            onlyOrderOwner(_orderId)
     {
         Order storage order = orders[_orderId];
-        require(order.owner == msg.sender);
         require(order_status[_orderId].positions == 0, "Cannot modify an Order which parents active positions");
 
 /*
@@ -315,23 +348,36 @@ contract MarginModule {
         order.expirationData = OrderExpiration(_liquidationRewardAmount, _liquidationRewardAsset, _deadline);
     }
 
-    function orderDepositEth(uint256 orderId) public payable {
-        require(orders[orderId].owner == msg.sender);
-        require(isOrderOpen(orderId), "Order is expired");
-        require(orders[orderId].baseAsset == address(0));
+    function orderDepositEth(uint256 _orderId) public payable onlyOrderOwner(_orderId) {
+        require(isOrderOpen(_orderId), "Order is expired");
+        require(orders[_orderId].baseAsset == address(0));
 
-        orders[orderId].balance += msg.value;
-        emit OrderDeposit(orderId, address(0), msg.value);
+        orders[_orderId].balance += msg.value;
+        emit OrderDeposit(_orderId, address(0), msg.value);
     }
 
-    function orderDeposit(uint256 orderId, uint256 amount) public {
-        require(orders[orderId].owner == msg.sender);
-        require(isOrderOpen(orderId), "Order is expired");
-        require(orders[orderId].baseAsset != address(0));
+    function orderDepositWETH9(uint256 _orderId, address _WETH9) public payable onlyOrderOwner(_orderId) {
+        require(isOrderOpen(_orderId), "Order is expired");
+        require(orders[_orderId].baseAsset == _WETH9);
 
-        _receiveAsset(orders[orderId].baseAsset, amount);
-        orders[orderId].balance += amount;
-        emit OrderDeposit(orderId, orders[orderId].baseAsset, amount);
+        uint256 _balanceBefore = IWETH9(_WETH9).balanceOf(address(this));
+        (bool success, bytes memory _data) = _WETH9.call{value: msg.value}("");  // Execute deposit to WETH contract and track the received amount.
+        require(success);
+        uint256 _balanceDelta  = IWETH9(_WETH9).balanceOf(address(this)) - _balanceBefore;
+
+        orders[_orderId].balance += _balanceDelta;
+        //orders[_orderId].balance += msg.value;
+        emit OrderDeposit(_orderId, address(0), msg.value);
+    }
+
+    function orderDeposit(uint256 _orderId, uint256 amount) public onlyOrderOwner(_orderId) {
+        require(orders[_orderId].owner == msg.sender);
+        require(isOrderOpen(_orderId), "Order is expired");
+        require(orders[_orderId].baseAsset != address(0));
+
+        _receiveAsset(orders[_orderId].baseAsset, amount);
+        orders[_orderId].balance += amount;
+        emit OrderDeposit(_orderId, orders[_orderId].baseAsset, amount);
     }
 
     function isOrderOpen(uint256 id) public view returns(bool) {
@@ -343,20 +389,20 @@ contract MarginModule {
         return isActivated && isNotExpired && order_status[id].alive;
     }
 
-    function orderWithdraw(uint256 orderId, uint256 amount) public {
-        require(orders[orderId].owner == msg.sender);
+    function orderWithdraw(uint256 _orderId, uint256 amount) public onlyOrderOwner(_orderId) {
+        require(orders[_orderId].owner == msg.sender);
         // withdrawal is possible only when the order is closed
-        //require(!isOrderOpen(orderId), "Order is still active");
-        require(orders[orderId].balance >= amount);
+        //require(!isOrderOpen(_orderId), "Order is still active");
+        require(orders[_orderId].balance >= amount);
 
-        orders[orderId].balance -= amount;
-        if (orders[orderId].baseAsset == address(0)) {
+        orders[_orderId].balance -= amount;
+        if (orders[_orderId].baseAsset == address(0)) {
             _sendEth(amount);
         } else {
-            _sendAsset(orders[orderId].baseAsset, amount);
+            _sendAsset(orders[_orderId].baseAsset, amount);
         }
 
-        emit OrderWithdraw(orderId, orders[orderId].baseAsset, amount);
+        emit OrderWithdraw(_orderId, orders[_orderId].baseAsset, amount);
     }
 
     // TODO: Anyone can deposit funds to a position, not only the owner of the position.
