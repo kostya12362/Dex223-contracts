@@ -6,12 +6,14 @@ import './interfaces/IDex223Factory.sol';
 import './interfaces/IDex223Autolisting.sol';
 import '../interfaces/ITokenConverter.sol';
 import '../interfaces/IERC20Minimal.sol';
+import '../libraries/Multicall.sol';
 import '../interfaces/ISwapRouter.sol';
 import '../libraries/TickMath.sol';
 import '../tokens/interfaces/IERC223.sol';
 import './Dex223Oracle.sol';
 
-interface IDex223Pool {
+interface IDex223Pool 
+{
     function token0() external view returns (address, address);
     function token1() external view returns (address, address);
     function swapExactInput(
@@ -27,7 +29,8 @@ interface IDex223Pool {
 }
 
 
-contract IWETH9 {
+contract IWETH9 
+{
     // WETH contract interface valid for https://etherscan.io/address/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
     event  Approval(address indexed src, address indexed guy, uint wad);
     event  Transfer(address indexed src, address indexed dst, uint wad);
@@ -49,7 +52,8 @@ contract WhitelistIDHelper
     }
 }
 
-contract MarginModule {
+contract MarginModule is Multicall 
+{
     uint256 constant private MAX_UINT8 = 255;
     uint256 constant private MAX_FREEZE_DURATION = 1 hours;
     uint256 constant private INTEREST_RATE_PRECISION = 10000; 
