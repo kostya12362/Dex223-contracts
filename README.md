@@ -8,9 +8,8 @@
 | TOKEN_CONVERTER     | [0xe7E969012557f25bECddB717A3aa2f4789ba9f9a](https://etherscan.io/address/0xe7E969012557f25bECddB717A3aa2f4789ba9f9a#code) |
 | POOL_LIBRARY        | [0xfA5930D2Ef1b6231e220aeDda88E28C4E8F0F3a0](https://etherscan.io/address/0xfA5930D2Ef1b6231e220aeDda88E28C4E8F0F3a0#code) |
 | FACTORY             | [0xc0c5511f23a268f041Ad10466a17b719942a8F1f](https://etherscan.io/address/0xc0c5511f23a268f041Ad10466a17b719942a8F1f#code) |
-| SWAP_ROUTER         | [0x74BD76Ab5B80A0300b3c989CdaAC34D2984cEBde](https://etherscan.io/address/0x74BD76Ab5B80A0300b3c989CdaAC34D2984cEBde#code) |
-| POSITION_DESCRIPTOR | [0xb67aC8E7E4FDad7C63281952d2e3A5a0912f4ca0](https://etherscan.io/address/0xb67aC8E7E4FDad7C63281952d2e3A5a0912f4ca0#code) |
-| POSITION_MANAGER    | [0x9cF5612332b49519Aa398F0DE05d0a69D84124F1](https://etherscan.io/address/0x9cF5612332b49519Aa398F0DE05d0a69D84124F1#code) |
+| SWAP_ROUTER         | [0x8702E7647f689D07fdF2827978a19F5fdc662ef8](https://etherscan.io/address/0x74BD76Ab5B80A0300b3c989CdaAC34D2984cEBde#code) |
+| POSITION_MANAGER    | [0xEBf4C1851a85d47b6eEcdCfdE1030543509dd479](https://etherscan.io/address/0x9cF5612332b49519Aa398F0DE05d0a69D84124F1#code) |
 | POOL_INIT_CODE_HASH | 0x9966400177a96c358783e5915045e9e9f19d514dadb45a9e599b5f6295cbfd64                                                         |
 | POOL_USDC_WETH      | [0x29dC799d9d491CB5D1Cb7f3e385aEDEa0D39f0dD](https://etherscan.io/address/0x29dC799d9d491CB5D1Cb7f3e385aEDEa0D39f0dD#code) |
 | CORE_AUTOLISTING    | [0x13ddc6460c705d29d37b18a906c7fe69fa9e711d](https://etherscan.io/address/0x13ddc6460c705d29d37b18a906c7fe69fa9e711d)      |
@@ -22,14 +21,13 @@
 | Name                | Address                                                                                                                       |
 |---------------------|-------------------------------------------------------------------------------------------------------------------------------|
 | WETH9               | [0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa](https://sepolia.etherscan.io/address/0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa#code) |
-| TOKEN_CONVERTER     | [0xe831FDB60Dc18c264f1B45cadAFD5f2f2993EE83](https://sepolia.etherscan.io/address/0xe831FDB60Dc18c264f1B45cadAFD5f2f2993EE83#code) |
-| POOL_LIBRARY        | [0x5Aac8Cc2A2EDf140b9c729dAb31496B9F2a4b511](https://sepolia.etherscan.io/address/0x5Aac8Cc2A2EDf140b9c729dAb31496B9F2a4b511#code) |
-| FACTORY             | [0x6a17Ec0AC537e6e30c8425DC4C253F7D5926E66B](https://sepolia.etherscan.io/address/0x6a17Ec0AC537e6e30c8425DC4C253F7D5926E66B#code) |
+| TOKEN_CONVERTER     | [0x5847f5C0E09182d9e75fE8B1617786F62fee0D9F](https://sepolia.etherscan.io/address/0x5847f5C0E09182d9e75fE8B1617786F62fee0D9F#code) |
+| POOL_LIBRARY        | [0xc087468af4264f14a07abb52c63a099c93637604](https://sepolia.etherscan.io/address/0xc087468af4264f14a07abb52c63a099c93637604#code) |
+| FACTORY             | [0x3BD240DC11601223e35F2b803905b832c2798c2c](https://sepolia.etherscan.io/address/0x3BD240DC11601223e35F2b803905b832c2798c2c#code) |
 | SWAP_ROUTER         | [0x6d1a12d5921692f240CcDD9d4b7cAc2cCeD1BEd2](https://sepolia.etherscan.io/address/0x6d1a12d5921692f240CcDD9d4b7cAc2cCeD1BEd2#code) |
-| POSITION_DESCRIPTOR | [0x9F970c7107140B546AfF595f5Ddd093d5460f131](https://sepolia.etherscan.io/address/0x9F970c7107140B546AfF595f5Ddd093d5460f131#code) |
 | POSITION_MANAGER    | [0x091249267d085055fa2f281fa3f6c0cf4bf70bae](https://sepolia.etherscan.io/address/0x091249267d085055fa2f281fa3f6c0cf4bf70bae#code) |
-| POOL_INIT_CODE_HASH | 0x9966400177a96c358783e5915045e9e9f19d514dadb45a9e599b5f6295cbfd64                                                        |
-| POOL_USDC_WETH      | [0x02e8dc65c81d4064d89ada57f3c6880aa4f83c66](https://sepolia.etherscan.io/address/0x02e8dc65c81d4064d89ada57f3c6880aa4f83c66#code) |
+| POOL_INIT_CODE_HASH | 0xf381c67d48673ceb8a17b53722647aee43310f100cd97f25bfcc628958372b8b                                                        |
+| POOL_USDC_WETH      | [0x3B2E627DbDd6B8cc2CbA9B71154b32C9bb5Ed5d3](https://sepolia.etherscan.io/address/0x3B2E627DbDd6B8cc2CbA9B71154b32C9bb5Ed5d3#code) |
 
 ## Deprecated Ethereum mainnet deployment
 
