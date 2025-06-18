@@ -12,7 +12,43 @@ import '../libraries/TickMath.sol';
 import '../tokens/interfaces/IERC223.sol';
 import './Dex223Oracle.sol';
 
-interface IDex223Pool 
+contract WrapperTEST
+{
+    event Deposited(uint256 _value);
+    function orderDepositWETH9(uint256 _orderId, address _WETH9) public payable {
+
+        uint256 _balanceBefore = IWETH9(_WETH9).balanceOf(address(this));
+        IWETH9(_WETH9).deposit{value: msg.value}();  // Execute deposit to WETH contract and track the received amount.
+        //require(success);
+        uint256 _balanceDelta  = IWETH9(_WETH9).balanceOf(address(this)) - _balanceBefore;
+
+        emit Deposited(_balanceDelta);
+
+        //orders[_orderId].balance += _balanceDelta;
+        //orders[_orderId].balance += msg.value;
+        //emit OrderDeposit(_orderId, address(0), msg.value);
+    }
+}
+
+interface IModuleCalltest
+{
+    function createOrder(
+        bytes32 whitelistId,
+        uint256 interestRate,
+        uint256 duration,
+        uint256 minLoan,
+        uint256 liquidationRewardAmount,
+        address liquidationRewardAsset,
+        address asset,
+        uint32 deadline,
+        uint16 currencyLimit,
+        uint8 leverage,
+        address oracle//,
+        //address[] memory collateral
+    ) external returns (bool success);
+}
+
+interface IDex223Pool
 {
     function token0() external view returns (address, address);
     function token1() external view returns (address, address);
@@ -40,8 +76,8 @@ contract IWETH9
     mapping (address => uint)                       public  balanceOf;
 
     //function() public payable;   // <-- WETH contract supports a permissive fallback function.
-    //function deposit() external payable;
-    //function withdraw(uint wad) external;
+    function deposit() external payable {}
+    function withdraw(uint wad) external {}
 }
 
 contract WhitelistIDHelper
@@ -212,6 +248,11 @@ contract MarginModule is Multicall
         factory = IDex223Factory(_factory);
         router = ISwapRouter(_router);
     }
+    
+    function predictTokenListsID(address[] calldata tokens, bool isContract) public view returns(bytes32) {
+        bytes32 _hash = keccak256(abi.encode(isContract, tokens));
+        return _hash;
+    }
 
     function addTokenlist(address[] calldata tokens, bool isContract) public returns(bytes32) {
         //tokenlists.push(list);
@@ -344,8 +385,7 @@ contract MarginModule is Multicall
         require(orders[_orderId].baseAsset == _WETH9);
 
         uint256 _balanceBefore = IWETH9(_WETH9).balanceOf(address(this));
-        (bool success, bytes memory _data) = _WETH9.call{value: msg.value}("");  // Execute deposit to WETH contract and track the received amount.
-        require(success);
+        IWETH9(_WETH9).deposit{value: msg.value}();  // Execute deposit to WETH contract and track the received amount.
         uint256 _balanceDelta  = IWETH9(_WETH9).balanceOf(address(this)) - _balanceBefore;
 
         orders[_orderId].balance += _balanceDelta;
