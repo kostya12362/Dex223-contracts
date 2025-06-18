@@ -289,7 +289,6 @@ contract MarginModule {
     // since the implementation of OrderParams that bypasses stack depth limits.
     function activateOrder(uint256 _orderId, address[] calldata collateral) public onlyOrderOwner(_orderId) {
         Order storage order = orders[_orderId];
-        require(order.owner == msg.sender);
         require(order.collateralAssets.length == 0);
         require(collateral.length > 0);
 
@@ -298,8 +297,6 @@ contract MarginModule {
 
     function setOrderStatus(uint256 _orderId, bool _status) public onlyOrderOwner(_orderId)
     {
-        Order storage order = orders[_orderId];
-        require(order.owner == msg.sender);
         order_status[_orderId].alive = _status;
     }
 
@@ -320,24 +317,6 @@ contract MarginModule {
         Order storage order = orders[_orderId];
         require(order_status[_orderId].positions == 0, "Cannot modify an Order which parents active positions");
 
-/*
-    struct Order {
-        address owner;
-        uint256 id;
-        uint256 whitelist;
-        // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35%
-        uint256 interestRate;
-        uint256 duration;
-        uint256 minLoan; // Protection of liquidation process from overload.
-        address baseAsset;
-        uint16 currencyLimit;
-        uint8 leverage;
-        address oracle;
-        uint256 balance;
-        OrderExpiration expirationData;
-        address[] collateralAssets;
-    }
-*/
         order.whitelist     = _whitelist;
         order.interestRate  = _interestRate;
         order.duration      = _duration;
@@ -370,8 +349,7 @@ contract MarginModule {
         emit OrderDeposit(_orderId, address(0), msg.value);
     }
 
-    function orderDeposit(uint256 _orderId, uint256 amount) public onlyOrderOwner(_orderId) {
-        require(orders[_orderId].owner == msg.sender);
+    function orderDepositToken(uint256 _orderId, uint256 amount) public onlyOrderOwner(_orderId) {
         require(isOrderOpen(_orderId), "Order is expired");
         require(orders[_orderId].baseAsset != address(0));
 
