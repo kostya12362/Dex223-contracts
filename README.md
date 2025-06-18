@@ -8,8 +8,8 @@
 | TOKEN_CONVERTER     | [0xe7E969012557f25bECddB717A3aa2f4789ba9f9a](https://etherscan.io/address/0xe7E969012557f25bECddB717A3aa2f4789ba9f9a#code) |
 | POOL_LIBRARY        | [0xfA5930D2Ef1b6231e220aeDda88E28C4E8F0F3a0](https://etherscan.io/address/0xfA5930D2Ef1b6231e220aeDda88E28C4E8F0F3a0#code) |
 | FACTORY             | [0xc0c5511f23a268f041Ad10466a17b719942a8F1f](https://etherscan.io/address/0xc0c5511f23a268f041Ad10466a17b719942a8F1f#code) |
-| SWAP_ROUTER         | [0x8702E7647f689D07fdF2827978a19F5fdc662ef8](https://etherscan.io/address/0x74BD76Ab5B80A0300b3c989CdaAC34D2984cEBde#code) |
-| POSITION_MANAGER    | [0xEBf4C1851a85d47b6eEcdCfdE1030543509dd479](https://etherscan.io/address/0x9cF5612332b49519Aa398F0DE05d0a69D84124F1#code) |
+| SWAP_ROUTER         | [0x8702E7647f689D07fdF2827978a19F5fdc662ef8](https://etherscan.io/address/0x8702E7647f689D07fdF2827978a19F5fdc662ef8#code) |
+| POSITION_MANAGER    | [0xEBf4C1851a85d47b6eEcdCfdE1030543509dd479](https://etherscan.io/address/0xEBf4C1851a85d47b6eEcdCfdE1030543509dd479#code) |
 | POOL_INIT_CODE_HASH | 0x9966400177a96c358783e5915045e9e9f19d514dadb45a9e599b5f6295cbfd64                                                         |
 | POOL_USDC_WETH      | [0x29dC799d9d491CB5D1Cb7f3e385aEDEa0D39f0dD](https://etherscan.io/address/0x29dC799d9d491CB5D1Cb7f3e385aEDEa0D39f0dD#code) |
 | CORE_AUTOLISTING    | [0x13ddc6460c705d29d37b18a906c7fe69fa9e711d](https://etherscan.io/address/0x13ddc6460c705d29d37b18a906c7fe69fa9e711d)      |
@@ -28,6 +28,9 @@
 | POSITION_MANAGER    | [0x091249267d085055fa2f281fa3f6c0cf4bf70bae](https://sepolia.etherscan.io/address/0x091249267d085055fa2f281fa3f6c0cf4bf70bae#code) |
 | POOL_INIT_CODE_HASH | 0xf381c67d48673ceb8a17b53722647aee43310f100cd97f25bfcc628958372b8b                                                        |
 | POOL_USDC_WETH      | [0x3B2E627DbDd6B8cc2CbA9B71154b32C9bb5Ed5d3](https://sepolia.etherscan.io/address/0x3B2E627DbDd6B8cc2CbA9B71154b32C9bb5Ed5d3#code) |
+| CORE_AUTOLISTING    | [0x5c24027303865b744f2794945aee88eA56F1F5ee](https://etherscan.io/address/0x5c24027303865b744f2794945aee88eA56F1F5ee)      |
+| FREE_AUTOLISTING    | [0x8D13f2795228aB18faeFBdF9461E7E46b5853Bc5](https://etherscan.io/address/0x8D13f2795228aB18faeFBdF9461E7E46b5853Bc5)      |
+| AUTOLISTINGS_REGISTRY | [0xF3129265872004bD235de4Ac5e312254D962cC38](https://etherscan.io/address/0xF3129265872004bD235de4Ac5e312254D962cC38)    |
 
 ## Deprecated Ethereum mainnet deployment
 
