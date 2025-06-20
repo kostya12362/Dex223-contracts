@@ -93,6 +93,9 @@ contract Dex223PoolLib {
     mapping(bytes32 => Position.Info) public  positions;
     Oracle.Observation[65535] public  observations;
 
+    address public pool_lib;
+    address public quote_lib;
+
     struct ModifyPositionParams {
         // the address that owns the position
         address owner;
