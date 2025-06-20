@@ -122,6 +122,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
     Oracle.Observation[65535] public override observations;
 
     address public pool_lib;
+    address public quote_lib;
 
     /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
     /// to a function before the pool is initialized. The reentrancy guard is required throughout the contract because
@@ -166,11 +167,13 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         //uint24 _fee,
         //int24 _tickSpacing,
         address _library,
+        address _quote_library,
         address _converter
         ) external
     {
         require(msg.sender == factory);
         pool_lib = _library;
+        quote_lib = _quote_library;
         //token0.erc20 = _t0erc20;
         //token1.erc20 = _t1erc20;
         token0.erc223 = _t0erc223;
@@ -452,6 +455,42 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
                 revert(ptr, 32)
             }
         }
+    }
+
+    event Delta0(int256);
+    event Delta1(int256);
+    event FullRetdata(bytes);
+    
+    function quoteSwap(
+        address recipient,
+        bool zeroForOne,
+        int256 amountSpecified,
+        uint160 sqrtPriceLimitX96,
+        bool prefer223,
+        bytes memory data
+    ) external returns (int256 delta) {
+        // quoteSwap performs a `revert()` once it will reach IUniswapV3SwapCallback invocation
+        // and passes callback values back to retdata.
+        (bool success, bytes memory retdata) = quote_lib.delegatecall(abi.encodeWithSignature("quoteSwap(address,bool,int256,uint160,bool,bytes)", recipient, zeroForOne, amountSpecified, sqrtPriceLimitX96, prefer223, data));
+
+        /*
+        if (success) {
+            (amount0, amount1) = abi.decode(retdata, (int256, int256));
+        } else {
+            string memory val = abi.decode(retdata, (string));
+            assembly {
+                let ptr := mload(0x40)
+                mstore(ptr, val)
+                revert(ptr, 32)
+            }
+        }
+        */
+        emit FullRetdata(retdata);
+        (int256 _d0) = abi.decode(retdata, (int256));
+        emit Delta0(_d0);
+        //emit Delta1(_d1);
+
+        return _d0;
     }
 
     receive() external payable {
