@@ -52,6 +52,11 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         address erc223;
     }
 
+    event Delta0(int256); // Debugging event for quote-swap feature.
+                          // Not intended to be called in practice
+                          // but might be useful for liquidatiojn calculations verification
+                          // and serve as a record of the liquidation price proof.
+
     /// @inheritdoc IUniswapV3PoolImmutables
     address public override factory;
 
@@ -122,6 +127,7 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
     Oracle.Observation[65535] public override observations;
 
     address public pool_lib;
+    address public quote_lib;
 
     /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
     /// to a function before the pool is initialized. The reentrancy guard is required throughout the contract because
@@ -166,11 +172,13 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         //uint24 _fee,
         //int24 _tickSpacing,
         address _library,
+        address _quote_library,
         address _converter
         ) external
     {
         require(msg.sender == factory);
         pool_lib = _library;
+        quote_lib = _quote_library;
         //token0.erc20 = _t0erc20;
         //token1.erc20 = _t1erc20;
         token0.erc223 = _t0erc223;
@@ -452,6 +460,26 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
                 revert(ptr, 32)
             }
         }
+    }
+    
+    function quoteSwap(
+        address recipient,
+        bool zeroForOne,
+        int256 amountSpecified,
+        uint160 sqrtPriceLimitX96,
+        bool prefer223,
+        bytes memory data
+    ) external returns (int256 delta) {
+        // quoteSwap performs a `revert()` once it will reach IUniswapV3SwapCallback invocation
+        // and passes callback values back to retdata.
+        (bool success, bytes memory retdata) = quote_lib.delegatecall(abi.encodeWithSignature("quoteSwap(address,bool,int256,uint160,bool,bytes)", recipient, zeroForOne, amountSpecified, sqrtPriceLimitX96, prefer223, data));
+        (int256 _d0) = abi.decode(retdata, (int256));
+        emit Delta0(_d0); // This event is preserved for debugging purposes,
+                          // this function is never supposed to be called in practice
+                          // since the caller must simulate the transaction 
+                          //and get the return value instead.
+
+        return _d0;
     }
 
     receive() external payable {

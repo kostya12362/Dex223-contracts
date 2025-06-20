@@ -18,6 +18,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
     address public override owner;
 
     address public pool_lib;
+    address public quote_lib;
 
     ITokenStandardIntrospection public standardIntrospection;
     address public tokenReceivedCaller;
@@ -29,11 +30,12 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
     // @inheritdoc IUniswapV3Factory
     mapping(address => mapping(address => mapping(uint24 => address))) public override getPool;
 
-    function set(address _lib, address _converter) public
+    function set(address _lib, address _quote, address _converter) public
     {
         require(msg.sender == owner);
         converter = ITokenStandardConverter(_converter);
         pool_lib = _lib;
+        quote_lib = _quote;
     }
 
     constructor() {
@@ -98,7 +100,7 @@ contract Dex223Factory is IDex223Factory, UniswapV3PoolDeployer, NoDelegateCall 
         require(tickSpacing != 0);
         require(getPool[tokenA_erc20][tokenB_erc20][fee] == address(0));
         pool = payable(deploy(address(this), tokenA_erc20, tokenB_erc20, fee, tickSpacing));
-        Dex223Pool(pool).set(tokenA_erc223, tokenB_erc223, pool_lib,  address(converter));
+        Dex223Pool(pool).set(tokenA_erc223, tokenB_erc223, pool_lib, quote_lib, address(converter));
         getPool[tokenA_erc20][tokenB_erc20][fee] = pool;
         // populate mapping in ALL directions.
         getPool[tokenB_erc20][tokenA_erc20][fee] = pool;

@@ -20,7 +20,7 @@ import '../libraries/Oracle.sol';
 import '../libraries/TransferHelper.sol';
 import '../libraries/SwapMath.sol';
 
-contract Dex223PoolLib {
+contract Dex223QuoteLib {
     using LowGasSafeMath for uint256;
     using LowGasSafeMath for int256;
     using SafeCast for uint256;
@@ -342,39 +342,6 @@ contract Dex223PoolLib {
         }
     }
 
-    /// @dev noDelegateCall is applied indirectly via _modifyPosition
-    function mint(
-        address recipient,
-        int24 tickLower,
-        int24 tickUpper,
-        uint128 amount,
-        bytes calldata data
-    ) external  /*adjustableSender*/ returns (uint256 amount0, uint256 amount1) {
-        require(amount > 0);
-        (, int256 amount0Int, int256 amount1Int) =
-                        _modifyPosition(
-                ModifyPositionParams({
-                    owner: recipient,
-                    tickLower: tickLower,
-                    tickUpper: tickUpper,
-                    liquidityDelta: int256(amount).toInt128()
-                })
-            );
-
-        amount0 = uint256(amount0Int);
-        amount1 = uint256(amount1Int);
-
-        uint256 balance0Before;
-        uint256 balance1Before;
-        if (amount0 > 0) balance0Before = balance0();
-        if (amount1 > 0) balance1Before = balance1();
-        IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(amount0, amount1, data);
-        if (amount0 > 0) require(balance0Before.add(amount0) <= balance0(), 'M0');
-        if (amount1 > 0) require(balance1Before.add(amount1) <= balance1(), 'M1');
-
-        emit Mint(msg.sender, recipient, tickLower, tickUpper, amount, amount0, amount1);
-    }
-
     function optimisticDelivery(address _token, address _recipient, uint256 _amount) internal
     {
         bool _is223 = false;
@@ -416,95 +383,6 @@ contract Dex223PoolLib {
             TransferHelper.safeTransfer(_token, _recipient, _amount);
         }
     }
-
-    function collect(
-        address recipient,
-        int24 tickLower,
-        int24 tickUpper,
-        uint128 amount0Requested,
-        uint128 amount1Requested,
-        bool token0_223,
-        bool token1_223
-    ) external returns (uint128 amount0, uint128 amount1) {
-        // we don't need to checkTicks here, because invalid positions will never have non-zero tokensOwed{0,1}
-        Position.Info storage position = positions.get(msg.sender, tickLower, tickUpper);
-
-        amount0 = amount0Requested > position.tokensOwed0 ? position.tokensOwed0 : amount0Requested;
-        amount1 = amount1Requested > position.tokensOwed1 ? position.tokensOwed1 : amount1Requested;
-
-        if (amount0 > 0) {
-            position.tokensOwed0 -= amount0;
-            //TransferHelper.safeTransfer(token0.erc20, recipient, amount0);
-            if(token0_223) optimisticDelivery(token0.erc223, recipient, amount0);
-            else optimisticDelivery(token0.erc20, recipient, amount0);
-        }
-        if (amount1 > 0) {
-            position.tokensOwed1 -= amount1;
-            //TransferHelper.safeTransfer(token1.erc20, recipient, amount1);
-            if(token1_223) optimisticDelivery(token1.erc223, recipient, amount1);
-            else optimisticDelivery(token1.erc20, recipient, amount1);
-        }
-
-        emit Collect(msg.sender, recipient, tickLower, tickUpper, amount0, amount1);
-    }
-
-    function collectProtocol(
-        address recipient,
-        uint128 amount0Requested,
-        uint128 amount1Requested,
-        bool token0_223,
-        bool token1_223
-    ) external returns (uint128 amount0, uint128 amount1) {
-        amount0 = amount0Requested > protocolFees.token0 ? protocolFees.token0 : amount0Requested;
-        amount1 = amount1Requested > protocolFees.token1 ? protocolFees.token1 : amount1Requested;
-
-        if (amount0 > 0) {
-            if (amount0 == protocolFees.token0) amount0--; // ensure that the slot is not cleared, for gas savings
-            protocolFees.token0 -= amount0;
-            //TransferHelper.safeTransfer(token0.erc20, recipient, amount0);
-            if (token0_223) optimisticDelivery(token0.erc223, recipient, amount0);
-            else optimisticDelivery(token0.erc20, recipient, amount0);
-        }
-        if (amount1 > 0) {
-            if (amount1 == protocolFees.token1) amount1--; // ensure that the slot is not cleared, for gas savings
-            protocolFees.token1 -= amount1;
-            //TransferHelper.safeTransfer(token1.erc20, recipient, amount1);
-            if (token1_223) optimisticDelivery(token1.erc223, recipient, amount1);
-            else optimisticDelivery(token1.erc20, recipient, amount1);
-        }
-
-        emit CollectProtocol(msg.sender, recipient, amount0, amount1);
-    }
-
-    /// @dev noDelegateCall is applied indirectly via _modifyPosition
-    function burn(
-        int24 tickLower,
-        int24 tickUpper,
-        uint128 amount
-    ) external  returns (uint256 amount0, uint256 amount1) {
-        (Position.Info storage position, int256 amount0Int, int256 amount1Int) =
-                        _modifyPosition(
-                ModifyPositionParams({
-                    owner: msg.sender,
-                    tickLower: tickLower,
-                    tickUpper: tickUpper,
-                    liquidityDelta: -int256(amount).toInt128()
-                })
-            );
-
-        amount0 = uint256(-amount0Int);
-        amount1 = uint256(-amount1Int);
-
-        if (amount0 > 0 || amount1 > 0) {
-            (position.tokensOwed0, position.tokensOwed1) = (
-                position.tokensOwed0 + uint128(amount0),
-                position.tokensOwed1 + uint128(amount1)
-            );
-        }
-
-        emit Burn(msg.sender, tickLower, tickUpper, amount, amount0, amount1);
-    }
-
 
     struct SwapCache {
         // the protocol fee for the input token
@@ -556,16 +434,14 @@ contract Dex223PoolLib {
         uint256 feeAmount;
     }
 
-    function swap(
+    function quoteSwap(
         address recipient,
         bool zeroForOne,
         int256 amountSpecified,
         uint160 sqrtPriceLimitX96,
         bool prefer223Out,
         bytes memory data
-    ) external /*noDelegateCall*/ // noDelegateCall will not prevent delegatecalling
-                                                        // this method from the same contract via `tokenReceived` of ERC-223
-     returns (int256 amount0, int256 amount1) {
+    ) external returns (int256 amount0, int256 amount1) {
 
         require(amountSpecified != 0, 'AS');
 
@@ -738,55 +614,25 @@ contract Dex223PoolLib {
         //           so the ERC-223 tokens are already in the contract
         //           and the amount is stored in the `erc223deposit[msg.sender][token]` variable.
         if (zeroForOne) {
-
-            // SECURITY WARNING!
-            // In order to prevent re-entrancy attacks
-            // first subtract the deposited amount or pull the tokens from the swap sender
-            // then deliver the swapped amount.
-
-            // ERC-223 depositing logic
-            if (erc223deposit[swap_sender][token0.erc223] >= uint256(amount0))
-            {
-                erc223deposit[swap_sender][token0.erc223] -= uint256(amount0);
-            }
-            // ERC-20 depositing logic
-            else
-            {
-                uint256 balance0Before = balance0();
-                IUniswapV3SwapCallback(swap_sender).uniswapV3SwapCallback(amount0, amount1, data);
-                require(balance0Before.add(uint256(amount0)) <= balance0(), 'IIA');
-            }
-
-            if (amount1 < 0)
-            {
-                if(prefer223Out) optimisticDelivery(token1.erc223, recipient, uint256(-amount1));
-                else optimisticDelivery(token1.erc20, recipient, uint256(-amount1));
-            }
+            // There is no ERC-223 case handling in quote-swap prediction
+            // since we don't care about the method of tokens delivery
+            // and only compute numbers to return to the caller.
+                assembly {
+                    let ptr := mload(0x40)
+                    mstore(ptr, amount1)
+                    revert(ptr, 32)
+                }
         } else {
-
-            // Again, first receive the payment, then deliver the tokens.
-            // We don't want to be hacked as TheDAO was.
-
-            // ERC-223 depositing logic
-            if (erc223deposit[swap_sender][token1.erc223] >= uint256(amount1))
             {
-                erc223deposit[swap_sender][token1.erc223] -= uint256(amount1);
-            }
-            // ERC-20 depositing logic
-            else
-            {
-                uint256 balance1Before = balance1();
-                IUniswapV3SwapCallback(swap_sender).uniswapV3SwapCallback(amount0, amount1, data);
-                require(balance1Before.add(uint256(amount1)) <= balance1(), 'IIA');
-            }
-
-            if (amount0 < 0) {
-                if(prefer223Out) optimisticDelivery(token0.erc223, recipient, uint256(-amount0));
-                else optimisticDelivery(token0.erc20, recipient, uint256(-amount0));
+            // No ERC-223 handling, the amount of swapped tokens
+            // does not change regardless of the preferred standard.
+                assembly {
+                    let ptr := mload(0x40)
+                    mstore(ptr, amount0)
+                    revert(ptr, 32)
+                }
             }
         }
-
-        emit Swap(swap_sender, recipient, amount0, amount1, state.sqrtPriceX96, state.liquidity, state.tick);
     }
 
 }
