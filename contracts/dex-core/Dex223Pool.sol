@@ -52,6 +52,11 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         address erc223;
     }
 
+    event Delta0(int256); // Debugging event for quote-swap feature.
+                          // Not intended to be called in practice
+                          // but might be useful for liquidatiojn calculations verification
+                          // and serve as a record of the liquidation price proof.
+
     /// @inheritdoc IUniswapV3PoolImmutables
     address public override factory;
 
@@ -456,10 +461,6 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
             }
         }
     }
-
-    event Delta0(int256);
-    event Delta1(int256);
-    event FullRetdata(bytes);
     
     function quoteSwap(
         address recipient,
@@ -472,23 +473,11 @@ contract Dex223Pool is IUniswapV3Pool, NoDelegateCall, PeripheryValidation {
         // quoteSwap performs a `revert()` once it will reach IUniswapV3SwapCallback invocation
         // and passes callback values back to retdata.
         (bool success, bytes memory retdata) = quote_lib.delegatecall(abi.encodeWithSignature("quoteSwap(address,bool,int256,uint160,bool,bytes)", recipient, zeroForOne, amountSpecified, sqrtPriceLimitX96, prefer223, data));
-
-        /*
-        if (success) {
-            (amount0, amount1) = abi.decode(retdata, (int256, int256));
-        } else {
-            string memory val = abi.decode(retdata, (string));
-            assembly {
-                let ptr := mload(0x40)
-                mstore(ptr, val)
-                revert(ptr, 32)
-            }
-        }
-        */
-        emit FullRetdata(retdata);
         (int256 _d0) = abi.decode(retdata, (int256));
-        emit Delta0(_d0);
-        //emit Delta1(_d1);
+        emit Delta0(_d0); // This event is preserved for debugging purposes,
+                          // this function is never supposed to be called in practice
+                          // since the caller must simulate the transaction 
+                          //and get the return value instead.
 
         return _d0;
     }
