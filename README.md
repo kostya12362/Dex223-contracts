@@ -10,7 +10,7 @@
 | FACTORY             | [0x8dae173016f65F61e90631Ee5f28C9E47b1ebc06](https://etherscan.io/address/0x8dae173016f65F61e90631Ee5f28C9E47b1ebc06#code) |
 | SWAP_ROUTER         | [0xbeBAB9Ab58f8099fbFEb15E14b663615D19304Fa](https://etherscan.io/address/0xbeBAB9Ab58f8099fbFEb15E14b663615D19304Fa#code) |
 | POSITION_MANAGER    | [0xFd4cE11db9db9433286734304049526E9336139E](https://etherscan.io/address/0xFd4cE11db9db9433286734304049526E9336139E#code) |
-| POOL_INIT_CODE_HASH | 0x9966400177a96c358783e5915045e9e9f19d514dadb45a9e599b5f6295cbfd64                                                         |
+| POOL_INIT_CODE_HASH | 0xa5fa1f34aae4b83ab2690d3f3df6f78e99959a1f2eb8aa4c11ba10586677338d                                                         |
 | POOL_USDC_WETH      | [0x29dC799d9d491CB5D1Cb7f3e385aEDEa0D39f0dD](https://etherscan.io/address/0x29dC799d9d491CB5D1Cb7f3e385aEDEa0D39f0dD#code) |
 | CORE_AUTOLISTING    | [0x13ddc6460c705d29d37b18a906c7fe69fa9e711d](https://etherscan.io/address/0x13ddc6460c705d29d37b18a906c7fe69fa9e711d)      |
 | FREE_AUTOLISTING    | [0xa7089d8cbcc47543388a346dd6ebf0b05106a477](https://etherscan.io/address/0xa7089d8cbcc47543388a346dd6ebf0b05106a477)      |
