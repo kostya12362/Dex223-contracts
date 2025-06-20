@@ -2,6 +2,18 @@
 pragma solidity =0.7.6;
 pragma abicoder v2;
 
+interface IQuotePool
+{
+    function quoteSwap(
+        address recipient,
+        bool zeroForOne,
+        int256 amountSpecified,
+        uint160 sqrtPriceLimitX96,
+        bool prefer223,
+        bytes memory data
+    ) external returns (int256 delta);
+}
+
 interface ISwapExactInputSingleParams
 {
     struct ExactInputSingleParams {
@@ -89,7 +101,7 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-contract UtilityDEXConfigure is INFPMParams, ISwapExactInputSingleParams
+contract UtilityDEXConfigure2 is INFPMParams, ISwapExactInputSingleParams
 {
     address public factory;
     address public NFPM;
@@ -98,7 +110,7 @@ contract UtilityDEXConfigure is INFPMParams, ISwapExactInputSingleParams
 
     address public creator = msg.sender;
 
-    address XE_token = address(0x8F5Ea3D9b780da2D0Ab6517ac4f6E697A948794f);
+    address XE_token = address(0x8F5Ea3D9b780da2D0Ab6517ac4f6E697A948794f); // XE = token0
     address HE_token = address(0xEC5aa08386F4B20dE1ADF9Cdf225b71a133FfaBa);
 
     constructor()
@@ -205,4 +217,118 @@ contract UtilityDEXConfigure is INFPMParams, ISwapExactInputSingleParams
         
         IRouter(Router).exactInputSingle(_swapParams);
     }
+
+    /*
+    ["0xEC5aa08386F4B20dE1ADF9Cdf225b71a133FfaBa", "0x8F5Ea3D9b780da2D0Ab6517ac4f6E697A948794f", "10000", "0x222E674FB1a7910cCF228f8aECF760508426b482", "1931079822268", "50000", "0", "1461446703485210103287273052203988822378723970341", "false"]
+    */
+
+    function step5_HEXEQuotePredict() public 
+    {
+        bytes memory data = abi.encodeWithSelector(0x1698ee82, XE_token, HE_token, 10000);
+        (bool success, bytes memory returnData) = factory.staticcall(data);
+
+        address _pool = abi.decode(returnData, (address));
+
+        // Simulate swap and Quote-predict the price
+
+        IQuotePool(_pool).quoteSwap(
+            address(this), // Doesn't matter, swap will not actually execute anyways.
+            true,          // Predict it for XE -> HE swap. XE is token0
+            4202230,
+            4295128740,
+            false,
+            ""
+         );
+
+        giveAllowancesIfNecessary();
+
+        ExactInputSingleParams memory _swapParams = ExactInputSingleParams(
+            XE_token,
+            HE_token,
+            10000,
+            creator,
+            block.timestamp + 10000,
+            4202230,
+            0,
+            4295128740,
+            false);
+        
+        IRouter(Router).exactInputSingle(_swapParams);
+
+        //
+        //address recipient,
+        //bool zeroForOne,
+        //int256 amountSpecified,
+        //uint160 sqrtPriceLimitX96,
+        //bool prefer223,
+        //bytes memory data
+    }
+
+    function step6_HEXEQuoteInReverse() public 
+    {
+        bytes memory data = abi.encodeWithSelector(0x1698ee82, XE_token, HE_token, 10000);
+        (bool success, bytes memory returnData) = factory.staticcall(data);
+
+        address _pool = abi.decode(returnData, (address));
+
+        // Simulate swap and Quote-predict the price
+
+        IQuotePool(_pool).quoteSwap(
+            address(this),
+            false,          // Predict it for HE -> XE swap. XE is token0
+            50000,
+            1461446703485210103287273052203988822378723970341,
+            false,
+            "0xec5aa08386f4b20de1adf9cdf225b71a133ffaba0027108f5ea3d9b780da2d0ab6517ac4f6e697a948794f"
+         );
+
+        giveAllowancesIfNecessary();
+
+        ExactInputSingleParams memory _swapParams = ExactInputSingleParams(
+            HE_token,
+            XE_token,
+            10000,
+            creator,
+            block.timestamp + 10000,
+            50000,
+            0,
+            1461446703485210103287273052203988822378723970341,
+            false);
+        
+        IRouter(Router).exactInputSingle(_swapParams);
+
+        //
+        //address recipient,
+        //bool zeroForOne,
+        //int256 amountSpecified,
+        //uint160 sqrtPriceLimitX96,
+        //bool prefer223,
+        //bytes memory data
+    }
+
+    function giveAllowancesIfNecessary() internal
+    {
+        if(IERC20(XE_token).allowance(address(this), Router) <= 100000000000)
+        {
+            IERC20(XE_token).approve(Router, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(HE_token).approve(Router, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+        }
+    }
+
+
+
+    /*
+    0	recipient	address
+0xaC68D878c004a28bD4505E61590D1703BFc339A9
+1	zeroForOne	bool
+false
+2	amountSpecified	int256
+50000
+3	sqrtPriceLimitX96	uint160
+1461446703485210103287273052203988822378723970341
+4	prefer223	bool
+false
+5	data	bytes
+0xec5aa08386f4b20de1adf9cdf225b71a133ffaba0027108f5ea3d9b780da2d0ab6517ac4f6e697a948794f
+*/
 }
