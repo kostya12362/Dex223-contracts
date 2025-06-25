@@ -16,6 +16,13 @@
 | FREE_AUTOLISTING    | [0xa7089d8cbcc47543388a346dd6ebf0b05106a477](https://etherscan.io/address/0xa7089d8cbcc47543388a346dd6ebf0b05106a477)      |
 | AUTOLISTINGS_REGISTRY | [0x105F43A70aFCEd0493545D04C1d5687DF4b3f48f](https://etherscan.io/address/0x105F43A70aFCEd0493545D04C1d5687DF4b3f48f)    |
 
+
+## Sepolia testnet deployment (Quoteswap supported)
+
+- Factory 0x5D63230470AB553195dfaf794de3e94C69d150f9
+- Router 0x99504dbaa0f9368e9341c15f67377d55ed4ac690
+- NFPM 0x068754a9fd1923d5c7b2da008c56ba0ef0958d7e
+
 ## Sepolia testnet deployment
 
 | Name                | Address                                                                                                                       |
