@@ -12,7 +12,7 @@
 | POSITION_MANAGER    | [0xFd4cE11db9db9433286734304049526E9336139E](https://etherscan.io/address/0xFd4cE11db9db9433286734304049526E9336139E#code) |
 | POOL_INIT_CODE_HASH | 0xa5fa1f34aae4b83ab2690d3f3df6f78e99959a1f2eb8aa4c11ba10586677338d                                                         |
 | POOL_USDC_WETH      | [0x82Cc735b39a3992be7b47bEb9AE7519aC92ed562](https://etherscan.io/address/0x82Cc735b39a3992be7b47bEb9AE7519aC92ed562#code) |
-| CORE_AUTOLISTING    | [0x13ddc6460c705d29d37b18a906c7fe69fa9e711d](https://etherscan.io/address/0x13ddc6460c705d29d37b18a906c7fe69fa9e711d)      |
+| CORE_AUTOLISTING    | [0x029f10E06Dc7d6264f9432ACA3F52572543c48e0](https://etherscan.io/address/0x029f10E06Dc7d6264f9432ACA3F52572543c48e0)      |
 | FREE_AUTOLISTING    | [0xa7089d8cbcc47543388a346dd6ebf0b05106a477](https://etherscan.io/address/0xa7089d8cbcc47543388a346dd6ebf0b05106a477)      |
 | AUTOLISTINGS_REGISTRY | [0x105F43A70aFCEd0493545D04C1d5687DF4b3f48f](https://etherscan.io/address/0x105F43A70aFCEd0493545D04C1d5687DF4b3f48f)    |
 
