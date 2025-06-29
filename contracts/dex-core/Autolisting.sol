@@ -99,6 +99,16 @@ contract IDexPool
     Token public token1;
 }
 
+contract IERC7417Converter
+{
+    function predictWrapperAddress(address _token,
+                                   bool    _isERC20 // Is the provided _token a ERC20 or not?
+                                                    // If it is set as ERC20 then we will predict the address of a 
+                                                    // ERC223 wrapper for that token.
+                                                    // Otherwise we will predict ERC20 wrapper address.
+                                  ) view external returns (address) { }
+}
+
 contract AutoListingsRegistry {
     event TokenListed(address indexed _listedBy, address indexed _tokenERC20, address indexed _tokenERC223);
     event ListingContractUpdated(address indexed _autolisting, address _owner, string _url, bytes _metadata);
@@ -318,6 +328,292 @@ contract Dex223AutoListing {
         // It may require payments or some liquidity criteria.
 
         // Free-listing contract does not require anything so it will automatically pass.
+        if (paymentTokens.length == 0) return 0; // no prices set == free listing
+
+        // get price for passed token address
+        uint price = paymentPrices[paymentToken];
+        require(price > 0);
+
+        // check payment in native coin
+        if (paymentToken == address(0)) {
+            require(msg.value > 0);
+        }
+
+        return price;
+    }
+
+    function getToken(uint256 index) public view returns (address _erc20, address _erc223)
+    {
+        return (tokens[index].erc20, tokens[index].erc223);
+    }
+
+    // function to set paymentToken price
+    //@dec set price to ZERO to exclude token from acceptable
+    function setPaymentPrice(address paymentToken, uint price)  external returns (bool)
+    {
+        require(msg.sender == owner);
+
+        // If the token is being set to a non-zero price for the first time, add it to paymentTokens
+        if (price > 0 && paymentPrices[paymentToken] == 0) {
+            paymentTokens.push(paymentToken);
+        }
+
+        // If the token price is being set to zero, remove it from the list
+        if (price == 0 && paymentPrices[paymentToken] > 0) {
+            _removeToken(paymentToken);
+        }
+
+        paymentPrices[paymentToken] = price;
+
+        registry.updateListingPrice(paymentToken, price);
+
+        return true;
+    }
+
+    // function to get paymentTokens
+    function getPrices() external view returns (TokenPrice[] memory)
+    {
+        TokenPrice[] memory prices = new TokenPrice[](paymentTokens.length);
+
+        for (uint i = 0; i < paymentTokens.length; i++) {
+            prices[i] = TokenPrice(paymentTokens[i], paymentPrices[paymentTokens[i]]);
+        }
+        return prices;
+    }
+
+    function _removeToken(address paymentToken) internal {
+        uint length = paymentTokens.length;
+        for (uint i = 0; i < length; i++) {
+            if (paymentTokens[i] == paymentToken) {
+                paymentTokens[i] = paymentTokens[length - 1];
+                paymentTokens.pop();
+                break;
+            }
+        }
+    }
+
+    function safeTransferFrom(address token, address from, address to, uint value) internal {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "Transfer failed");
+    }
+
+    function safeTransfer(address token, address to, uint value) internal {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "Transfer failed");
+    }
+
+    function extractTokens(address _token, uint256 _amount) public
+    {
+        require(msg.sender == owner);
+
+        if(_token == address(0))
+        {
+            payable(msg.sender).transfer(_amount);
+        } else {
+            safeTransfer(_token, msg.sender, _amount);
+        }
+    }
+}
+
+contract Dex223CoreAutoListing {
+    string  public version = "1.0";
+    string  public name;  // Auto-listing contracts name.
+    string  public url;   // URL of the auto-listing contract if one exists.
+    address public owner; // Who is the owner of the auto-listing contract.
+    // Owner always exists but it is possible that owner has no special rights.
+    // If there is no `owner` variable assume the owner is address(0x0).
+    IDex223Factory       factory;
+    IERC7417Converter    converter;
+    AutoListingsRegistry registry;
+
+    constructor(address _factory, address _registry, address _converter, string memory _name, string memory _URL)
+    {
+        factory  = IDex223Factory(_factory);
+        registry = AutoListingsRegistry(_registry);
+        owner    = msg.sender;
+        name     = _name;
+        url      = _URL;
+        converter = IERC7417Converter(_converter);
+
+        registry.updateContractInfo(msg.sender, _URL, "");
+    }
+
+    struct Token
+    {
+        address erc20;
+        address erc223;
+    }
+
+    mapping(address => uint256) public listed_tokens; // Address => ID (the ID will point at to two addresses,
+    //                both versions of this tokens in different standards).
+    mapping(uint256 => Token)   public tokens;        // ID      => two addresses (ERC-20 ; ERC-223).
+
+    event TokenListed(address indexed token_erc20, address indexed token_erc223);
+    event PairListed(address indexed token0_erc20, address token0_erc223, address indexed token1_erc20, address token1_erc223, address indexed pool, uint256 feeTier);
+
+    struct TradeablePair
+    {
+        address token1_erc20;
+        address token2_erc20;
+        address token1_erc223;
+        address token2_erc223;
+        mapping (uint24 => address) pools; // fee tier => pool address
+    }
+
+    uint256 public last_update;
+    uint256 public num_listed_tokens;
+    mapping(uint256 => TradeablePair) public pairs; // index => pair
+
+    // NOTE add storing paymentTokens & prices (map)
+    address[] private paymentTokens;
+    mapping(address => uint) private paymentPrices;
+
+    struct TokenPrice
+    {
+        address token;
+        uint price;
+    }
+
+    function updateMe(string memory _newURL) public
+    {
+        url = _newURL;
+        registry.updateContractInfo(owner, _newURL, "");
+    }
+
+    function getRegistry() public view returns (address)
+    {
+        return address(registry);
+    }
+
+    function getFactory() public view returns (address)
+    {
+        return address(factory);
+    }
+
+    function getName() public view returns (string memory)
+    {
+        return name;
+    }
+
+    function getURL() public view returns (string memory)
+    {
+        return url;
+    }
+
+    function isListed(address _token) public view returns (bool)
+    {
+        return (listed_tokens[_token] != 0);
+    }
+
+    function list(address pool, uint24 feeTier, address paymentToken) public payable 
+    {
+        uint price = checkListingCriteria(paymentToken);
+//        require(price >= 0); // if price < 0 - listing criteria not met
+
+        IDexPool _pool = IDexPool(pool);
+
+        (address _token0_erc20, address _token0_erc223) = _pool.token0();
+        (address _token1_erc20, address _token1_erc223) = _pool.token1();
+
+        // Checking if we are listing a token which has a pool at Dex223.
+        require(_token0_erc20 != address(0) || _token0_erc223 != address(0), "Token not defined in the pool contract.");
+        require(_token1_erc20 != address(0) || _token1_erc223 != address(0), "Token not defined in the pool contract.");
+        require(factory.getPool(_token0_erc20, _token1_erc20, feeTier) == pool, "Token pool is not a part of Dex223 factory.");
+
+        uint toTransfer = 0;
+
+        if(!isListed(_token0_erc20) || !isListed(_token0_erc223))
+        {
+            toTransfer += price;
+            checkListing(_token0_erc20, _token0_erc223);
+        }
+
+        if(!isListed(_token1_erc20) || !isListed(_token1_erc223))
+        {
+            toTransfer += price;
+            checkListing(_token1_erc20, _token1_erc223);
+        }
+
+        if (toTransfer > 0) {
+            if (paymentToken == address(0)) {
+                // NOTE no return of excess payment
+                require(msg.value >= toTransfer, "Payment is not enough");
+            } else {
+                safeTransferFrom(paymentToken, msg.sender, address(this), toTransfer);
+            }
+        }
+
+        emit PairListed(_token0_erc20, _token0_erc223, _token1_erc20, _token1_erc223, pool, feeTier);
+        last_update = block.timestamp;
+    }
+
+    function listSingle(address token20, address token223, address paymentToken) public payable 
+    {
+        uint price = checkListingCriteria(paymentToken);
+
+        // Checking if we are listing a token which has a pool at Dex223.
+        require(converter.predictWrapperAddress(token20, true) == token223, "Provided token standards are incorrect.");
+
+        checkListing(token20, token223);
+
+        if (price > 0 && msg.sender != owner) {
+            if (paymentToken == address(0)) {
+                // NOTE no return of excess payment
+                require(msg.value >= price, "Payment is not enough");
+            } else {
+                safeTransferFrom(paymentToken, msg.sender, address(this), price);
+            }
+        }
+
+        emit TokenListed(token20, token223);
+        last_update = block.timestamp;
+    }
+
+    function checkListing(address _token_erc20, address _token_erc223) internal
+    {
+
+        // There are two possible scenarios here:
+        // 1. We are listing a new token on Dex223.
+        // 2. We are adding a version of an already listed token which previously had
+        //    only one standard available.
+
+        //emit TokenListed(_token_erc20, _token_erc223);
+        if(!isListed(_token_erc20) && !isListed(_token_erc223))
+        {
+            // Listing a new token.
+            num_listed_tokens++; // First increase the counter, tokens[0] must be always address(0).
+            tokens[num_listed_tokens]    = Token(_token_erc20, _token_erc223);
+            listed_tokens[_token_erc20]  = num_listed_tokens;
+            listed_tokens[_token_erc223] = num_listed_tokens;
+
+            // Record the listing via Auto-listings Registry for Subgraph logging.
+            registry.recordListing(_token_erc20, _token_erc223);
+            emit TokenListed(_token_erc20, _token_erc223);
+        }
+        else
+        {
+            // Adding a new version (standard) to a previously listed token.
+            if(isListed(_token_erc20))
+            {
+                // If the token is already listed as ERC-20;
+                tokens[listed_tokens[_token_erc20]] = Token(_token_erc20, _token_erc223);
+                listed_tokens[_token_erc223]        = listed_tokens[_token_erc20];
+            }
+            else
+            {
+                // Otherwise the token is listed as ERC-223;
+                tokens[listed_tokens[_token_erc223]] = Token(_token_erc20, _token_erc223);
+                listed_tokens[_token_erc20]          = listed_tokens[_token_erc223];
+            }
+
+            // Record the listing via Auto-listings Registry for Subgraph logging.
+            registry.recordListing(_token_erc20, _token_erc223);
+            emit TokenListed(_token_erc20, _token_erc223);
+        }
+    }
+
+    function checkListingCriteria(address paymentToken) internal view returns (uint)
+    {
         if (paymentTokens.length == 0) return 0; // no prices set == free listing
 
         // get price for passed token address
