@@ -12,40 +12,33 @@ import '../libraries/TickMath.sol';
 import '../tokens/interfaces/IERC223.sol';
 import './Dex223Oracle.sol';
 
-contract WrapperTEST
-{
-    event Deposited(uint256 _value);
-    function orderDepositWETH9(uint256 _orderId, address _WETH9) public payable {
 
-        uint256 _balanceBefore = IWETH9(_WETH9).balanceOf(address(this));
-        IWETH9(_WETH9).deposit{value: msg.value}();  // Execute deposit to WETH contract and track the received amount.
-        //require(success);
-        uint256 _balanceDelta  = IWETH9(_WETH9).balanceOf(address(this)) - _balanceBefore;
-
-        emit Deposited(_balanceDelta);
-
-        //orders[_orderId].balance += _balanceDelta;
-        //orders[_orderId].balance += msg.value;
-        //emit OrderDeposit(_orderId, address(0), msg.value);
-    }
+interface IERC20 {
+    function mint(address who, uint256 quantity) external;
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 }
 
-interface IModuleCalltest
+interface IOrderParams
 {
-    function createOrder(
-        bytes32 whitelistId,
-        uint256 interestRate,
-        uint256 duration,
-        uint256 minLoan,
-        uint256 liquidationRewardAmount,
-        address liquidationRewardAsset,
-        address asset,
-        uint32 deadline,
-        uint16 currencyLimit,
-        uint8 leverage,
-        address oracle//,
-        //address[] memory collateral
-    ) external returns (bool success);
+    struct OrderParams
+    {
+        bytes32 whitelistId;
+        uint256 interestRate;
+        uint256 duration;
+        uint256 minLoan;
+        uint256 liquidationRewardAmount;
+        address liquidationRewardAsset;
+        address asset;
+        uint32 deadline;
+        uint16 currencyLimit;
+        uint8 leverage;
+        address oracle;
+        address[] collateral;
+    }
 }
 
 interface IDex223Pool
@@ -88,7 +81,208 @@ contract WhitelistIDHelper
     }
 }
 
-contract MarginModule is Multicall 
+contract PureOracle
+{
+    
+    IUniswapV3Factory public factory;
+
+    uint24[] public feeTiers = [500, 3000, 10000];
+
+    constructor(address _factory)
+    {
+        factory = IUniswapV3Factory(_factory);
+    }
+
+    function findPoolWithHighestLiquidity(
+        address tokenA,
+        address tokenB
+    ) public view returns (address poolAddress, uint128 liquidity, uint24 fee) {
+        require(tokenA != tokenB);
+        require(tokenA != address(0));
+
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+
+        for (uint i = 0; i < feeTiers.length; i++) {
+            address pool = factory.getPool(token0, token1, feeTiers[i]);
+            if (pool != address(0)) {
+                uint128 currentLiquidity = IUniswapV3Pool(pool).liquidity();
+                if (currentLiquidity >= liquidity) {
+                    liquidity = currentLiquidity;
+                    poolAddress = pool;
+                    fee = feeTiers[i];
+                }
+            }
+        }
+
+        require(poolAddress != address(0));
+    }
+
+    function getAmountOut(
+        //address poolAddress,
+        address asset1,
+        address asset2,
+        uint256 quantity
+    ) public view returns(uint256 amountForBuy) {
+        // Always retains 1:4 ratio between two sorted tokens.
+        if(asset1 < asset2)
+        {
+            return quantity * 4;
+        }
+        else 
+        {
+            return quantity / 4;
+        }
+    }
+}
+
+contract UtilityModuleCfg is IOrderParams
+{
+    struct OrderExpiration {
+        uint256 liquidationRewardAmount;
+        address liquidationRewardAsset;
+        uint32 deadline;
+    } 
+    struct Order {
+        address owner;
+        uint256 id;
+        bytes32 whitelist;
+        // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35%
+        uint256 interestRate;
+        uint256 duration;
+        uint256 minLoan; // Protection of liquidation process from overload.
+        address baseAsset;
+        uint16 currencyLimit;
+        uint8 leverage;
+        address oracle;
+        uint256 balance;
+        OrderExpiration expirationData;
+        address[] collateralAssets;
+    }
+
+    address public margin_module;
+    address public creator = msg.sender;
+    bytes32 public tokenWlist;
+    address public oracle;
+    address public factory;
+
+    uint256 public last_order_id;
+
+    address public converter = 0x5847f5C0E09182d9e75fE8B1617786F62fee0D9F; // Standard Sepolian converter.
+
+    address XE_token = address(0x8F5Ea3D9b780da2D0Ab6517ac4f6E697A948794f); // XE
+    address HE_token = address(0xEC5aa08386F4B20dE1ADF9Cdf225b71a133FfaBa); // HE
+
+    constructor()
+    {
+        factory = 0x3BD240DC11601223e35F2b803905b832c2798c2c;
+        IERC20(XE_token).mint(address(this), 99999999999999999999);
+        IERC20(HE_token).mint(address(this), 99999999999999999999);
+        oracle = address(new PureOracle(factory));
+    }
+
+    function set(address _mm, address _oracle) public
+    {
+        margin_module = _mm;
+        oracle        = _oracle;
+    }
+
+    function step0_MakeOracle(address _factory) public
+    {
+        //address _oracle = deploy PureOracle(_factory);
+        oracle = address(new PureOracle(_factory));
+    }
+
+    event Step1(bytes32);
+    function step1_MakeWhitelist() public
+    {
+        /*
+        address[] memory _tokens = new address[](2);
+        _tokens[0] = XE_token;
+        _tokens[1] = HE_token;
+        */
+
+        //0x9368639e0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000008f5ea3d9b780da2d0ab6517ac4f6e697a948794f000000000000000000000000ec5aa08386f4b20de1adf9cdf225b71a133ffaba
+        //tokenWlist = margin_module.call("0x9368639e0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000008f5ea3d9b780da2d0ab6517ac4f6e697a948794f000000000000000000000000ec5aa08386f4b20de1adf9cdf225b71a133ffaba");
+        
+        //tokenWlist = margin_module.call{value: 0}("0x9368639e0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000008f5ea3d9b780da2d0ab6517ac4f6e697a948794f000000000000000000000000ec5aa08386f4b20de1adf9cdf225b71a133ffaba");
+        
+        address[] memory _tokens = new address[](2);
+        _tokens[0] = XE_token;
+        _tokens[1] = HE_token;
+        tokenWlist = MarginModule(margin_module).addTokenlist(_tokens, false);
+        emit Step1(tokenWlist);
+    }
+
+    function step2_MakeOrder() public 
+    {
+        OrderExpiration memory _orderDeath = OrderExpiration(103, XE_token, 4294967290);
+
+/*      bytes32 whitelistId;
+        uint256 interestRate;
+        uint256 duration;
+        uint256 minLoan;
+        uint256 liquidationRewardAmount;
+        address liquidationRewardAsset;
+        address asset;
+        uint32 deadline;
+        uint16 currencyLimit;
+        uint8 leverage;
+        address oracle;
+        address[] collateral;
+        */
+        address[] memory _collateralXE = new address[](1);
+        _collateralXE[0] = XE_token;
+        OrderParams memory _params;
+        _params.whitelistId             = tokenWlist;
+        _params.interestRate            = 216000000;
+        _params.duration                = 4800;
+        _params.minLoan                 = 0;
+        _params.liquidationRewardAmount = 103;
+        _params.liquidationRewardAsset  = XE_token;
+        _params.asset                   = XE_token;
+        _params.deadline                = 4294967290; // Infinity.
+        _params.currencyLimit           = 4;
+        _params.leverage                = 10;         // 10x << Max leverage
+        _params.oracle                  = oracle;
+        _params.collateral              = _collateralXE;
+
+        last_order_id = MarginModule(margin_module).createOrder(
+            _params
+        );
+
+        // ["0x050afabcae45ca12d82e4e72a31b41705e9349d547c5502b13ca38747125a648", "216000000", "4800", "725", "725", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", "1949519966", "4", "10", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", ["0x8f5ea3d9b780da2d0ab6517ac4f6e697a948794f", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa"]]
+    }
+
+    function step3_SupplyOrder() public 
+    {
+        if(IERC20(XE_token).allowance(address(this), margin_module) <= 100000000000)
+        {
+            IERC20(XE_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(HE_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+        }
+
+        //last_order_id
+
+        MarginModule(margin_module).orderDepositToken(last_order_id, 150000);
+    }
+
+    function step3_SupplyOrder(uint256 _id) public 
+    {
+        if(IERC20(XE_token).allowance(address(this), margin_module) <= 100000000000)
+        {
+            IERC20(XE_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(HE_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+        }
+
+        //last_order_id
+
+        MarginModule(margin_module).orderDepositToken(_id, 150000);
+    }
+
+    
+}
+
+contract MarginModule is Multicall, IOrderParams
 {
     uint256 constant private MAX_UINT8 = 255;
     uint256 constant private MAX_FREEZE_DURATION = 1 hours;
@@ -109,10 +303,24 @@ contract MarginModule is Multicall
         uint256 indexed orderId,
         address indexed owner,
         address indexed baseAsset,
+        bytes32 whitelistId,
         uint256 interestRate,
         uint256 duration,
         uint256 minLoan,
-        uint8 leverage
+        uint8 leverage,
+        address oracle
+    );
+
+    event OrderModified(
+        uint256 indexed orderId,
+        address indexed owner,
+        address indexed baseAsset,
+        uint256 interestRate,
+        uint256 duration,
+        uint256 minLoan,
+        uint8 leverage,
+        bool alive,
+        address oracle
     );
 
     event OrderDeposit(
@@ -126,6 +334,8 @@ contract MarginModule is Multicall
         address indexed asset,
         uint256 amount
     );
+
+    event TokenlistAdded(bytes32 indexed, bool is_contract, address[]);
 
     event PositionOpened(
         uint256 indexed positionId,
@@ -248,8 +458,13 @@ contract MarginModule is Multicall
         factory = IDex223Factory(_factory);
         router = ISwapRouter(_router);
     }
+
+    function getCollaterals(uint256 _orderId) public view returns(address[] memory)
+    {
+        return orders[_orderId].collateralAssets;
+    }
     
-    function predictTokenListsID(address[] calldata tokens, bool isContract) public view returns(bytes32) {
+    function predictTokenListsID(address[] calldata tokens, bool isContract) public pure returns(bytes32) {
         bytes32 _hash = keccak256(abi.encode(isContract, tokens));
         return _hash;
     }
@@ -259,23 +474,14 @@ contract MarginModule is Multicall
         bytes32 _hash = keccak256(abi.encode(isContract, tokens));
         if(tokenlists[_hash].exists) { return _hash; }  // No need to waste gas if the same exact list already exists.
         tokenlists[_hash] = Tokenlist(true, isContract, tokens);
+
+        emit TokenlistAdded(_hash, isContract, tokens);
         return _hash;
     }
 
-    struct OrderParams
+    function getTokenlist(bytes32 _hash) public view returns(address[] memory _tokens)
     {
-        bytes32 whitelistId;
-        uint256 interestRate;
-        uint256 duration;
-        uint256 minLoan;
-        uint256 liquidationRewardAmount;
-        address liquidationRewardAsset;
-        address asset;
-        uint32 deadline;
-        uint16 currencyLimit;
-        uint8 leverage;
-        address oracle;
-        address[] collateral;
+        return tokenlists[_hash].tokens;
     }
 
     function createOrder(
@@ -293,7 +499,7 @@ contract MarginModule is Multicall
         address oracle
         */
         OrderParams memory params
-    ) public returns (bool success){
+    ) public returns (uint256 orderId){
 
         require(params.leverage > 1);
         require(params.deadline > block.timestamp);
@@ -325,9 +531,9 @@ contract MarginModule is Multicall
             0
         );
 
-        emit OrderCreated(orderIndex, msg.sender, params.asset, params.interestRate, params.duration, params.minLoan, params.leverage);
+        emit OrderCreated(orderIndex, msg.sender, params.asset, params.whitelistId, params.interestRate, params.duration, params.minLoan, params.leverage, params.oracle);
         orderIndex++;
-        return true;
+        return orderIndex - 1;
     }
 
     // ActivateOrder is unnecessary since we can set everything properly with createOrder
@@ -785,9 +991,10 @@ contract MarginModule is Multicall
             address asset = position.assets[i];
             uint256 balance = position.balances[i];
 
-            (address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, baseAsset);
-            uint256 estimatedAsBase = oracle.getAmountOut(poolAddress, baseAsset, asset, balance);
-            totalValueInBaseAsset += estimatedAsBase;
+            //(address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, baseAsset);
+            //uint256 estimatedAsBase = oracle.getAmountOut(poolAddress, baseAsset, asset, balance);
+            uint256 _estimatedAsBase = oracle.getAmountOut(baseAsset, asset, balance);
+            totalValueInBaseAsset += _estimatedAsBase;
         }
 
         return totalValueInBaseAsset < requiredAmount;
@@ -972,9 +1179,10 @@ contract MarginModule is Multicall
         } else {
             Order storage order = orders[orderId];
             Oracle oracle = Oracle(order.oracle);
-            (address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, baseAsset);
-            uint256 estimatedAsBase = oracle.getAmountOut(poolAddress, baseAsset, asset, amount);
-            baseAmount = estimatedAsBase;
+            //(address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, baseAsset);
+            //uint256 estimatedAsBase = oracle.getAmountOut(poolAddress, baseAsset, asset, amount);
+            uint256 _estimatedAsBase = oracle.getAmountOut(baseAsset, asset, amount);
+            baseAmount = _estimatedAsBase;
         }
 
         return baseAmount;
