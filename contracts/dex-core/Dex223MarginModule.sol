@@ -783,7 +783,6 @@ contract MarginModule is Multicall, IOrderParams
         // This automatically checks if all the collateral that was paid satisfies the criteria set by the lender.
 
         require(!subjectToLiquidation(positionIndex));
-        positionIndex++;
 
         // Increment the amount of active positions associated with the parent order,
         // we are tracking the active positions to make sure that the Order owner
@@ -791,6 +790,7 @@ contract MarginModule is Multicall, IOrderParams
         order_status[_orderId].positions++;
 
         emit PositionOpened(positionIndex, msg.sender, _amount, order.baseAsset);
+        positionIndex++;
     }
 
     function marginSwap(uint256 _positionId,
