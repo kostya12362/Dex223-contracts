@@ -965,7 +965,31 @@ contract MarginModule is Multicall, IOrderParams
         reduceAsset(_positionId, _asset1, _amount);
         emit MarginSwap(_positionId, _asset1, _asset2, _amount, amountOut);
     }
+    
 
+    function getPositionStatus(uint256 positionId) public view returns(uint256 expected_balance, uint256 actual_balance)
+    {
+        Position storage position = positions[positionId];
+        Order storage order = orders[position.orderId];
+        Oracle oracle = Oracle(order.oracle);
+        
+        uint256 requiredAmount = calculateDebtAmount(position);
+        // base asset(at index 0) balance
+        uint256 totalValueInBaseAsset = position.balances[0];
+        address baseAsset = position.assets[0];
+
+        for (uint256 i = 1; i < position.assets.length; i++) {
+            address asset = position.assets[i];
+            uint256 balance = position.balances[i];
+
+            //(address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, baseAsset);
+            //uint256 estimatedAsBase = oracle.getAmountOut(poolAddress, baseAsset, asset, balance);
+            uint256 _estimatedAsBase = oracle.getAmountOut(baseAsset, asset, balance);
+            totalValueInBaseAsset += _estimatedAsBase;
+        }
+
+        return (requiredAmount, totalValueInBaseAsset);
+    }
 
 
     // @Dexaran 
