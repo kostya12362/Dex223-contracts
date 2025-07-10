@@ -294,7 +294,8 @@ contract MarginModule is Multicall, IOrderParams
     mapping (uint256 => OrderStatus) public order_status;
     mapping (uint256 => Position) public positions;
     mapping (address => mapping(address => uint256)) public erc223deposit;
-    mapping(bytes32 => Tokenlist) public tokenlists;
+    mapping (bytes32 => Tokenlist) public tokenlists;
+    mapping (uint256 => address)  public positionInitialCollateral;
 
     uint256 internal orderIndex;
     uint256 internal positionIndex;
@@ -748,11 +749,11 @@ contract MarginModule is Multicall, IOrderParams
             0,
             address(0));
 
+        positionInitialCollateral[positionIndex] = collateralAsset;
         positions[positionIndex] = _newPosition;
 
         order.balance -= _amount;
         addAsset(positionIndex, order.baseAsset, _amount);
-
         addAsset(positionIndex, collateralAsset, _collateralAmount);
 
         uint256 receivedEth = msg.value;
@@ -1221,9 +1222,9 @@ contract MarginModule is Multicall, IOrderParams
         if (whitelist.isContract == true) {
             // Optimization: contract address stored as first element instead of separate var
             address _contract = whitelist.tokens[0];
-            require(IDex223Autolisting(_contract).isListed(asset));
+            require(IDex223Autolisting(_contract).isListed(asset) || order.baseAsset == asset || positionInitialCollateral[positionId] == asset);
         } else {
-            require(whitelist.tokens[idInWhitelist] == asset);
+            require(whitelist.tokens[idInWhitelist] == asset || order.baseAsset == asset || positionInitialCollateral[positionId] == asset);
         }
     }
 
