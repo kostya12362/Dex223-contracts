@@ -1239,6 +1239,14 @@ contract MarginModule is Multicall, IOrderParams
             require(requiredAmount == 0, "Insufficient funds to close position");
         }
 
+        // Autowithdraw the liquidation fee as soon as position is closed.
+        (uint256 rewardAmount, address rewardAsset, ) = getOrderExpirationData(position.orderId);
+        if (rewardAsset == address(0)) {
+            _sendEth(rewardAmount);
+        } else {
+            _sendAsset(rewardAsset, rewardAmount);
+        }
+
         // Once the position is closed
         // we can decrease the number of active positions for the parent order.
         // If the number of active positions is 0 then the order owner can modify the order.
@@ -1261,18 +1269,6 @@ contract MarginModule is Multicall, IOrderParams
             _sendEth(amount);
         } else {
             _sendAsset(asset, amount);
-        }
-
-        // Payment of liquidation reward
-        // TODO: Fix reading data from positions parenting Order
-        //       because the Order owner can update configuration
-        //       after the position was closed.
-        Order storage order = orders[position.orderId];
-        (uint256 rewardAmount, address rewardAsset, ) = getOrderExpirationData(position.orderId);
-        if (rewardAsset == address(0)) {
-            _sendEth(rewardAmount);
-        } else {
-            _sendAsset(rewardAsset, rewardAmount);
         }
     }
 
