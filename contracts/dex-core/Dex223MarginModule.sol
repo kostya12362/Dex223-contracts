@@ -241,7 +241,7 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
     {
         factory = 0x5D63230470AB553195dfaf794de3e94C69d150f9;
         margin_module = _mm;
-        oracle        = 0x98742b4cb0c45Cb93F0D0B2b4083133FCd8C37A7;
+        oracle        = 0x5572A0d34E98688B16324f87F849242D050AD8D5;
         converter = 0x5847f5C0E09182d9e75fE8B1617786F62fee0D9F;
         NFPM = 0x068754A9fd1923D5C7B2Da008c56BA0eF0958d7e;
     }
@@ -307,12 +307,6 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
         block.timestamp + 10000);
         
         INFPM(NFPM).mint(_mintParams);
-    }
-
-    function x3_assignTokens() public
-    {
-        XE_token = token0;
-        HE_token = token1;
     }
 
     function step0_MakeOracle(address _factory) public
@@ -855,7 +849,8 @@ contract MarginModule is Multicall, IOrderParams
     }
 
     function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public payable {
-
+        // Make sure that both collateralToken and LiquidationRewardToken are approved
+        // in sufficient quantity.
         require(isOrderOpen(_orderId), "Order is expired");
 
         Order storage order = orders[_orderId];
@@ -1280,35 +1275,29 @@ contract MarginModule is Multicall, IOrderParams
 
     function _liquidate(uint256 positionId) internal {
         Position storage position = positions[positionId];
-        //Order storage order = orders[position.orderId];
-        bool success = true;
 
-        uint256 requiredAmount = _paybackBaseAsset(position);
-        if (requiredAmount > 0) {
-            // Start from 1 as 0 is base asset
-            for (uint256 i = 1; i < position.assets.length && requiredAmount > 0; i++) {
+        for (uint256 i = 1; i < position.assets.length; i++) {
                 address asset = position.assets[i];
                 uint256 balance = position.balances[i];
                 
                 if (balance == 0) continue;
                 
                 uint256 baseAssetReceived = _swapToBaseAsset(positionId, asset, balance);
-            }
-            
-            // Final attempt to pay back after all swaps
-            requiredAmount = _paybackBaseAsset(position);
+        }
+        _paybackBaseAsset(position);
+
+        // Payment of liquidation reward
+        (uint256 rewardAmount, address rewardAsset, ) = getOrderExpirationData(position.orderId);
+        if (rewardAsset == address(0)) 
+        {
+            _sendEth(rewardAmount);
+        } 
+        else 
+        {
+            _sendAsset(rewardAsset, rewardAmount);
         }
 
-        if (success) {
-            // Payment of liquidation reward
-            (uint256 rewardAmount, address rewardAsset, ) = getOrderExpirationData(position.orderId);
-            if (rewardAsset == address(0)) {
-                _sendEth(rewardAmount);
-            } else {
-                _sendAsset(rewardAsset, rewardAmount);
-            }
-            emit PositionLiquidated(positionId, msg.sender, rewardAmount);
-        }
+        emit PositionLiquidated(positionId, msg.sender, rewardAmount);
 
         position.open = false;
 
@@ -1329,7 +1318,6 @@ contract MarginModule is Multicall, IOrderParams
 
         // checking whether the base asset balance is sufficient to repay the loan
         if (baseBalance >= requiredAmount) {
-
             position.balances[0] -= requiredAmount;
             order.balance += requiredAmount;
             requiredAmount = 0;
