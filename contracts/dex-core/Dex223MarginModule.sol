@@ -258,6 +258,9 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
             token0 = token1;
             token1 = _tmp;
         }
+
+        IERC20Minimal(token0).transfer(msg.sender, 10000 * 10**18);
+        IERC20Minimal(token1).transfer(msg.sender, 10000 * 10**18);
     }
 
     function x1_MakeReservePool() public
