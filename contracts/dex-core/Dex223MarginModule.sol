@@ -135,8 +135,51 @@ contract PureOracle
     }
 }
 
-contract UtilityModuleCfg is IOrderParams
+interface IMintParams
 {
+    struct MintParams {
+        address token0;
+        address token1;
+        uint24 fee;
+        int24 tickLower;
+        int24 tickUpper;
+        uint256 amount0Desired;
+        uint256 amount1Desired;
+        uint256 amount0Min;
+        uint256 amount1Min;
+        address recipient;
+        uint256 deadline;
+    }
+}
+
+interface INFPM is IMintParams {
+    function createAndInitializePoolIfNecessary(
+        address token0_20,
+        address token1_20,
+        address token0_223,
+        address token1_223,
+        uint24 fee,
+        uint160 sqrtPriceX96
+    ) external payable returns (address pool);
+
+    function mint(MintParams calldata params)
+    external
+    payable
+    returns (
+        uint256 tokenId,
+        uint128 liquidity,
+        uint256 amount0,
+        uint256 amount1
+    );
+}
+
+contract UtilityModuleCfg is IOrderParams, IMintParams
+{
+    // This contracts serves testing and examinign purposes
+    // It can be used to perform basic operations in a batch
+    // and automates some workflows related to setting up the margin-module.
+
+    // NOTE: Highly unoptimized
     struct OrderExpiration {
         uint256 liquidationRewardAmount;
         address liquidationRewardAsset;
@@ -164,6 +207,7 @@ contract UtilityModuleCfg is IOrderParams
     bytes32 public tokenWlist;
     address public oracle;
     address public factory;
+    address public NFPM;
 
     uint256 public last_order_id;
 
@@ -172,18 +216,103 @@ contract UtilityModuleCfg is IOrderParams
     address XE_token = address(0x8F5Ea3D9b780da2D0Ab6517ac4f6E697A948794f); // XE
     address HE_token = address(0xEC5aa08386F4B20dE1ADF9Cdf225b71a133FfaBa); // HE
 
+    address public token0;
+    address public token1;
+    address public liq_token;
+
     constructor()
     {
         factory = 0x3BD240DC11601223e35F2b803905b832c2798c2c;
-        IERC20(XE_token).mint(address(this), 99999999999999999999);
-        IERC20(HE_token).mint(address(this), 99999999999999999999);
+        IERC20(XE_token).mint(address(this), 99999999999999 * 10**18);
+        IERC20(HE_token).mint(address(this), 99999999999999 * 10**18);
         oracle = address(new PureOracle(factory));
     }
 
-    function set(address _mm, address _oracle) public
+    function set(address _factory, address _mm, address _oracle, address _converter, address _nfpm) public
     {
+        factory = _factory;
         margin_module = _mm;
         oracle        = _oracle;
+        converter = _converter;
+        NFPM = _nfpm;
+    }
+
+    function setDefaults(address _mm) public 
+    {
+        factory = 0x5D63230470AB553195dfaf794de3e94C69d150f9;
+        margin_module = _mm;
+        oracle        = 0x98742b4cb0c45Cb93F0D0B2b4083133FCd8C37A7;
+        converter = 0x5847f5C0E09182d9e75fE8B1617786F62fee0D9F;
+        NFPM = 0x068754A9fd1923D5C7B2Da008c56BA0eF0958d7e;
+    }
+
+    function x0_MakeTokens() public
+    {
+        token0    = address(new ERC20Token("Foo Token", "FOO", 18, 133000 * 10**18));
+        token1    = address(new ERC20Token("Bar Token", "BAR", 18, 244011 * 10**18));
+        liq_token = address(new ERC20Token("Special Token to pay Liquidation rewards", "LIQ", 18, 7590000 * 10**18));
+
+        if (token0 > token1)
+        {
+            address _tmp = token0;
+            token0 = token1;
+            token1 = _tmp;
+        }
+    }
+
+    function x1_MakeReservePool() public
+    {
+        INFPM(NFPM).createAndInitializePoolIfNecessary(
+            token0,
+            token1,
+            ITokenStandardConverter(converter).predictWrapperAddress(token0, true),
+            ITokenStandardConverter(converter).predictWrapperAddress(token1, true),
+            3000,
+            2493578422612728506914605883
+        );
+    }
+
+    function x1_MakePool10000() public
+    {
+        INFPM(NFPM).createAndInitializePoolIfNecessary(
+            token0,
+            token1,
+            ITokenStandardConverter(converter).predictWrapperAddress(token0, true),
+            ITokenStandardConverter(converter).predictWrapperAddress(token1, true),
+            10000,
+            2493578422612728506914605883
+        );
+    }
+
+    function x2_Liquidity() public
+    {
+
+        // NOTE: Remix gase estimator fails consistently here
+        //       When executing this function
+        //       manually increase the amount of allocated gas.
+        IERC20(token0).approve(NFPM, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+        IERC20(token1).approve(NFPM, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+
+        MintParams memory _mintParams = MintParams(
+        token0,
+        token1,
+        10000,
+        -887200,
+        887200,
+        5000 * 10**18,
+        5000 * 10**18,
+        0,
+        0,
+        creator,
+        block.timestamp + 10000);
+        
+        INFPM(NFPM).mint(_mintParams);
+    }
+
+    function x3_assignTokens() public
+    {
+        XE_token = token0;
+        HE_token = token1;
     }
 
     function step0_MakeOracle(address _factory) public
@@ -197,8 +326,8 @@ contract UtilityModuleCfg is IOrderParams
     {
         /*
         address[] memory _tokens = new address[](2);
-        _tokens[0] = XE_token;
-        _tokens[1] = HE_token;
+        _tokens[0] = token0;
+        _tokens[1] = token1;
         */
 
         //0x9368639e0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000008f5ea3d9b780da2d0ab6517ac4f6e697a948794f000000000000000000000000ec5aa08386f4b20de1adf9cdf225b71a133ffaba
@@ -207,15 +336,15 @@ contract UtilityModuleCfg is IOrderParams
         //tokenWlist = margin_module.call{value: 0}("0x9368639e0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000008f5ea3d9b780da2d0ab6517ac4f6e697a948794f000000000000000000000000ec5aa08386f4b20de1adf9cdf225b71a133ffaba");
         
         address[] memory _tokens = new address[](2);
-        _tokens[0] = XE_token;
-        _tokens[1] = HE_token;
+        _tokens[0] = token0;
+        _tokens[1] = token1;
         tokenWlist = MarginModule(margin_module).addTokenlist(_tokens, false);
         emit Step1(tokenWlist);
     }
 
     function step2_MakeOrder() public 
     {
-        OrderExpiration memory _orderDeath = OrderExpiration(103, XE_token, 4294967290);
+        OrderExpiration memory _orderDeath = OrderExpiration(103, token0, 4294967290);
 
 /*      bytes32 whitelistId;
         uint256 interestRate;
@@ -230,21 +359,21 @@ contract UtilityModuleCfg is IOrderParams
         address oracle;
         address[] collateral;
         */
-        address[] memory _collateralXE = new address[](1);
-        _collateralXE[0] = XE_token;
+        address[] memory _collateralTkn = new address[](1);
+        _collateralTkn[0] = token0;
         OrderParams memory _params;
         _params.whitelistId             = tokenWlist;
         _params.interestRate            = 216000000;
         _params.duration                = 4800;
         _params.minLoan                 = 0;
         _params.liquidationRewardAmount = 103;
-        _params.liquidationRewardAsset  = XE_token;
-        _params.asset                   = XE_token;
+        _params.liquidationRewardAsset  = liq_token;
+        _params.asset                   = token1;
         _params.deadline                = 4294967290; // Infinity.
         _params.currencyLimit           = 4;
         _params.leverage                = 10;         // 10x << Max leverage
         _params.oracle                  = oracle;
-        _params.collateral              = _collateralXE;
+        _params.collateral              = _collateralTkn;
 
         last_order_id = MarginModule(margin_module).createOrder(
             _params
@@ -255,31 +384,45 @@ contract UtilityModuleCfg is IOrderParams
 
     function step3_SupplyOrder() public 
     {
-        if(IERC20(XE_token).allowance(address(this), margin_module) <= 100000000000)
+        
+        if(IERC20(token0).allowance(address(this), margin_module) <= 100000000000)
         {
-            IERC20(XE_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
-            IERC20(HE_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(token0).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(token1).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(liq_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
         }
 
-        //last_order_id
-
-        MarginModule(margin_module).orderDepositToken(last_order_id, 150000);
+        MarginModule(margin_module).orderDepositToken(last_order_id, 1500 * 10**18);
     }
 
     function step3_SupplyOrder(uint256 _id) public 
     {
-        if(IERC20(XE_token).allowance(address(this), margin_module) <= 100000000000)
+        if(IERC20(token0).allowance(address(this), margin_module) <= 100000000000)
         {
-            IERC20(XE_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
-            IERC20(HE_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(token0).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(token1).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(liq_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
         }
 
-        //last_order_id
-
-        MarginModule(margin_module).orderDepositToken(_id, 150000);
+        MarginModule(margin_module).orderDepositToken(_id, 1500 * 10**18);
     }
 
-    
+    function step4_MakePosition() public 
+    {
+        if(IERC20(token0).allowance(address(this), margin_module) <= 100000000000)
+        {
+            IERC20(token0).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(token1).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(liq_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+        }
+
+        MarginModule(margin_module).takeLoan(
+            last_order_id,
+            500 * 10**18,
+            0,
+            250 * 10**18 // 250 -> 750 >>> 3x leverage
+        );
+    }
 }
 
 contract MarginModule is Multicall, IOrderParams
@@ -336,7 +479,7 @@ contract MarginModule is Multicall, IOrderParams
         uint256 amount
     );
 
-    event TokenlistAdded(bytes32 indexed, bool is_contract, address[]);
+    event TokenlistAdded(bytes32 indexed hash, bool is_contract, address[] tokens);
 
     event PositionOpened(
         uint256 indexed positionId,
@@ -1350,4 +1493,142 @@ contract MarginModule is Multicall, IOrderParams
         require(assetId < list.tokens.length);
     }
 
+}
+
+/**
+ * @title ERC20Token
+ * @dev Implementation of the ERC20 token standard with comprehensive features
+ */
+contract ERC20Token is IERC20 {
+    
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    // Token metadata
+    string public name;
+    string public symbol;
+    uint8 public decimals;
+    
+    // Total supply tracking
+    uint256 private _totalSupply;
+    
+    // Balance tracking system
+    mapping(address => uint256) private _balances;
+    
+    // Allowance system - tracks approved spending amounts
+    mapping(address => mapping(address => uint256)) private _allowances;
+    
+    // Events
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event Mint(address indexed to, uint256 amount);
+    event Burn(address indexed from, uint256 amount);
+    
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals,
+        uint256 _initialSupply
+    ) {
+        require(bytes(_name).length > 0, "ERC20: name cannot be empty");
+        require(bytes(_symbol).length > 0, "ERC20: symbol cannot be empty");
+        require(_decimals <= 18, "ERC20: decimals cannot exceed 18");
+        
+        name = _name;
+        symbol = _symbol;
+        decimals = _decimals;
+        
+        // Calculate total supply with decimals
+        _totalSupply = _initialSupply * 10**_decimals;
+        
+        // Assign initial supply to contract deployer
+        _balances[msg.sender] = _totalSupply;
+        
+        emit Transfer(address(0), msg.sender, _totalSupply);
+        emit OwnershipTransferred(address(0), msg.sender);
+    }
+    
+    function totalSupply() public view returns (uint256) {
+        return _totalSupply;
+    }
+    
+    function balanceOf(address account) public view override returns (uint256) {
+        return _balances[account];
+    }
+
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
+        _transfer(msg.sender, recipient, amount);
+        return true;
+    }
+    
+    function allowance(address owner, address spender) public view override returns (uint256) {
+        return _allowances[owner][spender];
+    }
+    
+    function approve(address spender, uint256 amount) public override returns (bool) {
+        _approve(msg.sender, spender, amount);
+        return true;
+    }
+    
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+        uint256 currentAllowance = _allowances[sender][msg.sender];
+        require(currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
+        
+        _transfer(sender, recipient, amount);
+        _approve(sender, msg.sender, currentAllowance - amount);
+        
+        return true;
+    }
+    
+    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
+        _approve(msg.sender, spender, _allowances[msg.sender][spender] + addedValue);
+        return true;
+    }
+    
+    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
+        uint256 currentAllowance = _allowances[msg.sender][spender];
+        require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
+        
+        _approve(msg.sender, spender, currentAllowance - subtractedValue);
+        return true;
+    }
+    
+    function mint(address to, uint256 amount) public override {
+        require(amount > 0, "ERC20: mint amount must be greater than 0");
+        
+        _totalSupply += amount;
+        _balances[to] += amount;
+        
+        emit Transfer(address(0), to, amount);
+        emit Mint(to, amount);
+    }
+    
+    /**
+     * @dev Internal function to handle transfers
+     * @param sender Address to transfer from
+     * @param recipient Address to transfer to
+     * @param amount Amount to transfer
+     */
+    function _transfer(address sender, address recipient, uint256 amount) internal {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+        require(_balances[sender] >= amount, "ERC20: transfer amount exceeds balance");
+        
+        _balances[sender] -= amount;
+        _balances[recipient] += amount;
+        
+        emit Transfer(sender, recipient, amount);
+    }
+    
+    /**
+     * @dev Internal function to handle approvals
+     * @param owner Address that owns the tokens
+     * @param spender Address that will spend the tokens
+     * @param amount Amount to approve
+     */
+    function _approve(address owner, address spender, uint256 amount) internal {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+        
+        _allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
 }
