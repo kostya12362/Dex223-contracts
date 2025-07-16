@@ -12,6 +12,7 @@ import '../libraries/TickMath.sol';
 import '../tokens/interfaces/IERC223.sol';
 import './Dex223Oracle.sol';
 
+// TODO: Add new function that displays Pools for existing assets in a position
 
 interface IERC20 {
     function mint(address who, uint256 quantity) external;
@@ -225,6 +226,14 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
         factory = 0x3BD240DC11601223e35F2b803905b832c2798c2c;
         IERC20(XE_token).mint(address(this), 99999999999999 * 10**18);
         IERC20(HE_token).mint(address(this), 99999999999999 * 10**18);
+
+        // Setup defaults,
+        // during the full test run it resets at step X0_MakeTokens
+        // Otherwise uses XE-HE-HE configuration.
+        token0 = XE_token;
+        token1 = HE_token;
+        liq_token = HE_token;
+
         oracle = address(new PureOracle(factory));
     }
 
@@ -460,8 +469,12 @@ contract MarginModule is Multicall, IOrderParams
         uint256 duration,
         uint256 minLoan,
         uint8 leverage,
-        bool alive,
         address oracle
+    );
+
+    event OrderAliveStatus(
+        uint256 indexed orderId,
+        bool alive
     );
 
     event OrderDeposit(
@@ -510,6 +523,19 @@ contract MarginModule is Multicall, IOrderParams
         uint256 amountIn,
         uint256 amountOut
     );
+
+    event OrderCollateralsSet(address[] collaterals);
+
+    event Liquidation(uint256 indexed positionId,
+                      uint256 indexed orderId,
+                      address indexed liquidator);
+
+    event PositionWithdrawal(uint256 indexed positionId,
+                             address indexed asset,
+                             uint256 quantity);
+
+    event PositionClosed(uint256 indexed positionId,
+                        address  closedBy);
    
     struct Tokenlist {
         bool exists;
@@ -600,7 +626,43 @@ contract MarginModule is Multicall, IOrderParams
         router = ISwapRouter(_router);
     }
 
-    function getCollaterals(uint256 _orderId) public view returns(address[] memory)
+    function getPositionActualPools(uint256 _positionId, uint24[] memory _feeTiers) public view returns (address[] memory _pools)
+    {
+        Position storage position = positions[_positionId];
+        address[] storage assets = position.assets;
+        Order storage order = orders[position.orderId];
+        _pools = new address[](_feeTiers.length * position.assets.length);
+        //Oracle oracle = Oracle(order.oracle);
+
+        /*
+        for (uint i = 0; i < feeTiers.length; i++) {
+            address pool = factory.getPool(token0, token1, feeTiers[i]);
+            if (pool != address(0)) {
+                uint128 currentLiquidity = IUniswapV3Pool(pool).liquidity();
+                if (currentLiquidity >= liquidity) {
+                    liquidity = currentLiquidity;
+                    poolAddress = pool;
+                    fee = feeTiers[i];
+                }
+            }
+        }
+        */
+
+        for (uint256 _positionAsset = 0; _positionAsset < position.assets.length; _positionAsset++) {
+            for (uint24 _feeTier = 0; _feeTier < _feeTiers.length; _feeTier++) {
+                _pools[_positionAsset + _feeTier] = factory.getPool(position.assets[_positionAsset], order.baseAsset, _feeTiers[_feeTier]);
+            }
+        }
+/*
+        for (uint256 _positionAsset = 0; _positionAsset < position.assets.length; _positionAsset++) {
+            for (uint24 _feeTier = 0; _feeTier < _feeTiers.length; _feeTier++) {
+                _pools[_positionAsset + _feeTier] = address(this);
+            }
+        }
+*/
+    }
+
+    function getCollaterals(uint256 _orderId) public view returns(address[] memory _collaterals)
     {
         return orders[_orderId].collateralAssets;
     }
@@ -673,12 +735,14 @@ contract MarginModule is Multicall, IOrderParams
         );
 
         emit OrderCreated(orderIndex, msg.sender, params.asset, params.whitelistId, params.interestRate, params.duration, params.minLoan, params.leverage, params.oracle);
+        emit OrderCollateralsSet(params.collateral);
         orderIndex++;
         return orderIndex - 1;
     }
 
     // ActivateOrder is unnecessary since we can set everything properly with createOrder
     // since the implementation of OrderParams that bypasses stack depth limits.
+    /*
     function activateOrder(uint256 _orderId, address[] calldata collateral) public onlyOrderOwner(_orderId) {
         Order storage order = orders[_orderId];
         require(order.collateralAssets.length == 0);
@@ -686,10 +750,21 @@ contract MarginModule is Multicall, IOrderParams
 
         order.collateralAssets = collateral;
     }
+    */
+    
+    function orderSetCollaterals(uint256 _orderId, address[] calldata collateral) public onlyOrderOwner(_orderId) {
+        Order storage order = orders[_orderId];
+        require(order_status[_orderId].positions == 0, "Order has active positions");
+        require(collateral.length > 0, "Order must have at least one collateral");
+
+        order.collateralAssets = collateral;
+        emit OrderCollateralsSet(collateral);
+    }
 
     function setOrderStatus(uint256 _orderId, bool _status) public onlyOrderOwner(_orderId)
     {
         order_status[_orderId].alive = _status;
+        emit OrderAliveStatus(_orderId, _status);
     }
 
     function modifyOrder(uint256 _orderId,
@@ -717,6 +792,23 @@ contract MarginModule is Multicall, IOrderParams
         order.leverage      = _leverage;
         order.oracle        = _oracle;
         order.expirationData = OrderExpiration(_liquidationRewardAmount, _liquidationRewardAsset, _deadline);
+        /*
+        
+
+    event OrderModified(
+        uint256 indexed orderId,
+        address indexed owner,
+        address indexed baseAsset,
+        uint256 interestRate,
+        uint256 duration,
+        uint256 minLoan,
+        uint8 leverage,
+        bool alive,
+        address oracle
+    );
+    */
+        //emit OrderModified(_orderId, msg.sender, order.baseAsset, order.interestRate, order.duration, order.minLoan, order.leverage, order_status[_orderId].alive, order.oracle);
+        emit OrderModified(_orderId, msg.sender, order.baseAsset, order.interestRate, order.duration, order.minLoan, order.leverage, order.oracle);
     }
 
     function orderDepositEth(uint256 _orderId) public payable onlyOrderOwner(_orderId) {
@@ -1193,6 +1285,7 @@ contract MarginModule is Multicall, IOrderParams
             if (frozenDuration <= MAX_FREEZE_DURATION) {
                 require(msg.sender == position.liquidator);
                 _liquidate(positionId);
+                emit Liquidation(positionId, positions[positionId].orderId, msg.sender);
             } else {
                 position.frozenTime = 0;
                 position.liquidator = address(0);
@@ -1247,6 +1340,8 @@ contract MarginModule is Multicall, IOrderParams
             _sendAsset(rewardAsset, rewardAmount);
         }
 
+        emit PositionClosed(positionId, msg.sender);
+
         // Once the position is closed
         // we can decrease the number of active positions for the parent order.
         // If the number of active positions is 0 then the order owner can modify the order.
@@ -1265,6 +1360,8 @@ contract MarginModule is Multicall, IOrderParams
         uint256 amount = balances[id];
 
         reduceAsset(positionId, asset, amount);
+        emit PositionWithdrawal(positionId, asset, amount);
+
         if (asset == address(0)) {
             _sendEth(amount);
         } else {
@@ -1295,8 +1392,6 @@ contract MarginModule is Multicall, IOrderParams
         {
             _sendAsset(rewardAsset, rewardAmount);
         }
-
-        emit PositionLiquidated(positionId, msg.sender, rewardAmount);
 
         position.open = false;
 
@@ -1479,7 +1574,6 @@ contract MarginModule is Multicall, IOrderParams
         }
         require(assetId < list.tokens.length);
     }
-
 }
 
 /**
