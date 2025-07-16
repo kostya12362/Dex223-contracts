@@ -465,6 +465,7 @@ contract MarginModule is Multicall, IOrderParams
         uint256 indexed orderId,
         address indexed owner,
         address indexed baseAsset,
+        bytes32 tokenWhitelist,
         uint256 interestRate,
         uint256 duration,
         uint256 minLoan,
@@ -808,7 +809,7 @@ contract MarginModule is Multicall, IOrderParams
     );
     */
         //emit OrderModified(_orderId, msg.sender, order.baseAsset, order.interestRate, order.duration, order.minLoan, order.leverage, order_status[_orderId].alive, order.oracle);
-        emit OrderModified(_orderId, msg.sender, order.baseAsset, order.interestRate, order.duration, order.minLoan, order.leverage, order.oracle);
+        emit OrderModified(_orderId, msg.sender, order.baseAsset, _whitelist, _interestRate, _duration, _minLoan, _leverage, _oracle);
     }
 
     function orderDepositEth(uint256 _orderId) public payable onlyOrderOwner(_orderId) {
