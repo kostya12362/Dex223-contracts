@@ -525,7 +525,7 @@ contract MarginModule is Multicall, IOrderParams
         uint256 amountOut
     );
 
-    event OrderCollateralsSet(address[] collaterals);
+    event OrderCollateralsSet(uint256 indexed orderId, address[] collaterals);
 
     event Liquidation(uint256 indexed positionId,
                       uint256 indexed orderId,
@@ -736,7 +736,7 @@ contract MarginModule is Multicall, IOrderParams
         );
 
         emit OrderCreated(orderIndex, msg.sender, params.asset, params.whitelistId, params.interestRate, params.duration, params.minLoan, params.leverage, params.oracle);
-        emit OrderCollateralsSet(params.collateral);
+        emit OrderCollateralsSet(orderIndex, params.collateral);
         orderIndex++;
         return orderIndex - 1;
     }
@@ -759,7 +759,7 @@ contract MarginModule is Multicall, IOrderParams
         require(collateral.length > 0, "Order must have at least one collateral");
 
         order.collateralAssets = collateral;
-        emit OrderCollateralsSet(collateral);
+        emit OrderCollateralsSet(_orderId, collateral);
     }
 
     function setOrderStatus(uint256 _orderId, bool _status) public onlyOrderOwner(_orderId)
