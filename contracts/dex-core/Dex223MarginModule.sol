@@ -14,13 +14,14 @@ import './Dex223Oracle.sol';
 
 // TODO: Add new function that displays Pools for existing assets in a position
 
-interface IERC20 {
-    function mint(address who, uint256 quantity) external;
-    function balanceOf(address account) external view returns (uint256);
-    function transfer(address recipient, uint256 amount) external returns (bool);
-    function allowance(address owner, address spender) external view returns (uint256);
-    function approve(address spender, uint256 amount) external returns (bool);
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+abstract contract IERC20 {
+    uint8 public decimals;
+    function mint(address who, uint256 quantity) external virtual;
+    function balanceOf(address account) external view virtual returns (uint256);
+    function transfer(address recipient, uint256 amount) external virtual returns (bool);
+    function allowance(address owner, address spender) external view virtual returns (uint256);
+    function approve(address spender, uint256 amount) external virtual returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external virtual returns (bool);
 }
 
 interface IOrderParams
@@ -125,20 +126,38 @@ contract PureOracle
         uint256 quantity
     ) public view returns(uint256 amountForBuy) {
         // Always retains 1:4 ratio between two sorted tokens.
+        uint256 _result;
         if(asset1 < asset2)
         {
-            return quantity * 4;
+            if(IERC20(asset2).decimals() > IERC20(asset1).decimals())
+            {
+                _result = quantity * 4 * 10 ** (IERC20(asset2).decimals() - IERC20(asset1).decimals());
+            }
+            else 
+            {
+                _result = quantity * 4 / 10 ** (IERC20(asset1).decimals() - IERC20(asset2).decimals());
+            }
         }
         else 
         {
-            return quantity / 4;
+            if(IERC20(asset2).decimals() > IERC20(asset1).decimals())
+            {
+                _result = quantity / 4 * 10 ** (IERC20(asset2).decimals() - IERC20(asset1).decimals());
+            }
+            else 
+            {
+                _result = quantity / 4 / 10 ** (IERC20(asset1).decimals() - IERC20(asset2).decimals());
+            }
         }
+
+        return _result;
     }
 }
 
 interface IMintParams
 {
-    struct MintParams {
+    struct MintParams 
+    {
         address token0;
         address token1;
         uint24 fee;
@@ -1575,6 +1594,13 @@ contract MarginModule is Multicall, IOrderParams
         }
         require(assetId < list.tokens.length);
     }
+
+    function getPositionTokenlistID(uint256 _positionId) public view returns(bytes32 _whitelistId) {
+        
+        Position storage position = positions[_positionId];
+        Order storage order = orders[position.orderId];
+        return order.whitelist;
+    }
 }
 
 /**
@@ -1588,7 +1614,6 @@ contract ERC20Token is IERC20 {
     // Token metadata
     string public name;
     string public symbol;
-    uint8 public decimals;
     
     // Total supply tracking
     uint256 private _totalSupply;
