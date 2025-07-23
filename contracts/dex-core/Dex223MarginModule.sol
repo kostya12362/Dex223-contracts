@@ -548,7 +548,8 @@ contract MarginModule is Multicall, IOrderParams
 
     event Liquidation(uint256 indexed positionId,
                       uint256 indexed orderId,
-                      address indexed liquidator);
+                      address indexed liquidator,
+                      address feeReceiver);
 
     event PositionWithdrawal(uint256 indexed positionId,
                              address indexed asset,
@@ -1305,7 +1306,7 @@ contract MarginModule is Multicall, IOrderParams
             if (frozenDuration <= MAX_FREEZE_DURATION) {
                 require(msg.sender == position.liquidator);
                 _liquidate(positionId, receiver);
-                emit Liquidation(positionId, positions[positionId].orderId, msg.sender);
+                emit Liquidation(positionId, positions[positionId].orderId, msg.sender, receiver);
             } else {
                 position.frozenTime = 0;
                 position.liquidator = address(0);
