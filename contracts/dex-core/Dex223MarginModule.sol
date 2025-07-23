@@ -878,9 +878,9 @@ contract MarginModule is Multicall, IOrderParams
 
         orders[_orderId].balance -= amount;
         if (orders[_orderId].baseAsset == address(0)) {
-            _sendEth(amount);
+            _sendEth(amount, msg.sender);
         } else {
-            _sendAsset(orders[_orderId].baseAsset, amount);
+            _sendAsset(orders[_orderId].baseAsset, amount, msg.sender);
         }
 
         emit OrderWithdraw(_orderId, orders[_orderId].baseAsset, amount);
@@ -1293,7 +1293,7 @@ contract MarginModule is Multicall, IOrderParams
         return requiredAmount;
     }
 
-    function liquidate(uint256 positionId) public {
+    function liquidate(uint256 positionId, address receiver) public {
         Position storage position = positions[positionId];
 
         require(position.open);
@@ -1304,7 +1304,7 @@ contract MarginModule is Multicall, IOrderParams
             // On the first hour after a position is frozen, only the party that initiated the freeze can liquidate it.
             if (frozenDuration <= MAX_FREEZE_DURATION) {
                 require(msg.sender == position.liquidator);
-                _liquidate(positionId);
+                _liquidate(positionId, receiver);
                 emit Liquidation(positionId, positions[positionId].orderId, msg.sender);
             } else {
                 position.frozenTime = 0;
@@ -1355,9 +1355,9 @@ contract MarginModule is Multicall, IOrderParams
         // Autowithdraw the liquidation fee as soon as position is closed.
         (uint256 rewardAmount, address rewardAsset, ) = getOrderExpirationData(position.orderId);
         if (rewardAsset == address(0)) {
-            _sendEth(rewardAmount);
+            _sendEth(rewardAmount, msg.sender);
         } else {
-            _sendAsset(rewardAsset, rewardAmount);
+            _sendAsset(rewardAsset, rewardAmount, msg.sender);
         }
 
         emit PositionClosed(positionId, msg.sender);
@@ -1383,13 +1383,13 @@ contract MarginModule is Multicall, IOrderParams
         emit PositionWithdrawal(positionId, asset, amount);
 
         if (asset == address(0)) {
-            _sendEth(amount);
+            _sendEth(amount, msg.sender);
         } else {
-            _sendAsset(asset, amount);
+            _sendAsset(asset, amount, msg.sender);
         }
     }
 
-    function _liquidate(uint256 positionId) internal {
+    function _liquidate(uint256 positionId, address _receiver) internal {
         Position storage position = positions[positionId];
 
         for (uint256 i = 1; i < position.assets.length; i++) {
@@ -1406,11 +1406,11 @@ contract MarginModule is Multicall, IOrderParams
         (uint256 rewardAmount, address rewardAsset, ) = getOrderExpirationData(position.orderId);
         if (rewardAsset == address(0)) 
         {
-            _sendEth(rewardAmount);
+            _sendEth(rewardAmount, _receiver);
         } 
         else 
         {
-            _sendAsset(rewardAsset, rewardAmount);
+            _sendAsset(rewardAsset, rewardAmount, _receiver);
         }
 
         position.open = false;
@@ -1473,14 +1473,14 @@ contract MarginModule is Multicall, IOrderParams
         }
     }
 
-    function _sendAsset(address asset, uint256 amount) internal {
+    function _sendAsset(address asset, uint256 amount, address receiver) internal {
         require(asset != address(0));
 
-        IERC20Minimal(asset).transfer(msg.sender, amount);
+        IERC20Minimal(asset).transfer(receiver, amount);
     }
 
-    function _sendEth(uint256 amount) internal {
-        (bool success, ) = payable(msg.sender).call{value: amount}("");
+    function _sendEth(uint256 amount, address receiver) internal {
+        (bool success, ) = payable(receiver).call{value: amount}("");
         require(success);
     }
 
