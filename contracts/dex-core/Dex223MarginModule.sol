@@ -850,7 +850,7 @@ contract MarginModule is Multicall, IOrderParams
 
         orders[_orderId].balance += _balanceDelta;
         //orders[_orderId].balance += msg.value;
-        emit OrderDeposit(_orderId, address(0), msg.value);
+        emit OrderDeposit(_orderId, address(0), _balanceDelta);
     }
 
     function orderDepositToken(uint256 _orderId, uint256 amount) public onlyOrderOwner(_orderId) {
