@@ -972,19 +972,19 @@ contract MarginModule is Multicall, IOrderParams
         Order storage order = orders[_orderId];
         require(tokenlists[order.whitelist].tokens.length != 0, "Orders whitelist is empty");
 
-        require(_collateralIdx < order.collateralAssets.length);
+        require(_collateralIdx < order.collateralAssets.length, "Collaterals error");
         address collateralAsset = order.collateralAssets[_collateralIdx];
 
-        require(order.minLoan <= _amount);
-        require(order.balance >= _amount);
+        require(order.minLoan <= _amount, "Minloan error");
+        require(order.balance >= _amount, "Balance error");
 
         // leverage validation:
         // (collateral + loaned_asset) / collateral <= order.leverage
         uint256 collateralEquivalentInBaseAsset = _getEquivalentInBaseAsset(collateralAsset, _collateralAmount, order.baseAsset, _orderId);
         
         uint256 leverage = (collateralEquivalentInBaseAsset + _amount) / collateralEquivalentInBaseAsset;
-        require(leverage <= MAX_UINT8);
-        require(uint8(leverage) <= order.leverage);
+        require(leverage <= MAX_UINT8, "Leverage exceeds maxuint8");
+        require(uint8(leverage) <= order.leverage, "Leverage error");
 
         address[] memory _assets;
         uint256[] memory _balances;
@@ -1015,7 +1015,7 @@ contract MarginModule is Multicall, IOrderParams
         // Deposit collateral
         // In case the collateral asset is Ether
         if (collateralAsset == address(0)) {
-            require(receivedEth >= _collateralAmount);
+            require(receivedEth >= _collateralAmount, "ETH reception error");
             receivedEth -= _collateralAmount;
         // or ERC-20
         } else {
@@ -1026,7 +1026,7 @@ contract MarginModule is Multicall, IOrderParams
         // In case the reward asset is Ether
         (uint256 rewardAmount, address rewardAsset, ) = getOrderExpirationData(_orderId);
         if (rewardAsset == address(0)) {
-            require(receivedEth >= rewardAmount);
+            require(receivedEth >= rewardAmount, "ETH reward reception error");
             receivedEth -= rewardAmount;
         // or ERC-20
         } else {
@@ -1037,7 +1037,7 @@ contract MarginModule is Multicall, IOrderParams
         // Revert otherwise.
         // This automatically checks if all the collateral that was paid satisfies the criteria set by the lender.
 
-        require(!subjectToLiquidation(positionIndex));
+        require(!subjectToLiquidation(positionIndex), "Position is immediately exposed to liquidation");
 
         // Increment the amount of active positions associated with the parent order,
         // we are tracking the active positions to make sure that the Order owner
