@@ -557,6 +557,12 @@ contract MarginModule is Multicall, IOrderParams
 
     event PositionClosed(uint256 indexed positionId,
                         address  closedBy);
+
+    event NewAsset(uint256 positionId,
+                   address asset);
+
+    event AssetRemoved(uint256 positionId,
+                       address asset);
    
     struct Tokenlist {
         bool exists;
@@ -930,9 +936,9 @@ contract MarginModule is Multicall, IOrderParams
 
                 assets.push(_asset);
                 balances.push(_amount);
+                emit NewAsset(_positionIndex, _asset);
             }
         }
-
     }
 
     function reduceAsset(uint256 _positionIndex, address _asset, uint256 _amount) internal {
@@ -947,6 +953,7 @@ contract MarginModule is Multicall, IOrderParams
         balances[id] -= _amount;
 
         if (balances[id] == 0) {
+            emit AssetRemoved(_positionIndex, _asset);
             removeAsset(_positionIndex, id);
         }
     }
@@ -1047,13 +1054,18 @@ contract MarginModule is Multicall, IOrderParams
         order_status[_orderId].positions++;
 
         emit PositionOpened(positionIndex, msg.sender, _amount, order.baseAsset);
+        emit NewAsset(positionIndex, order.baseAsset);
+        if (order.collateralAssets[_collateralIdx] != order.baseAsset)
+        {
+            emit NewAsset(positionIndex, order.collateralAssets[_collateralIdx]);
+        }
         positionIndex++;
     }
 
     function marginSwap(uint256 _positionId,
         uint256 _assetId1,
         uint256 _whitelistId1, // Internal ID in the whitelisted array. If set to 0
-        // then the asset must be found in an auto-listing contract.
+                               // then the asset must be found in an auto-listing contract.
         uint256 _whitelistId2,
         uint256 _amount,
         address _asset2,
@@ -1281,6 +1293,12 @@ contract MarginModule is Multicall, IOrderParams
         return totalValueInBaseAsset < requiredAmount;
     }
 
+    function subjectToLiquidationExtended(uint256 positionId) public view returns (bool subjectToLiquidation, address liquidator, uint256 frozenTimestamp)
+    {
+        Position storage position = positions[positionId];
+        return (this.subjectToLiquidation(positionId), position.liquidator, position.frozenTime);
+    }
+
     // The borrower must repay both the principal amount and the accrued interest.
     function calculateDebtAmount(Position storage position) internal view returns (uint256) {
         uint256 elapsedSecs = block.timestamp - position.createdAt;
@@ -1299,22 +1317,28 @@ contract MarginModule is Multicall, IOrderParams
     function liquidate(uint256 positionId, address receiver) public {
         Position storage position = positions[positionId];
 
-        require(position.open);
+        require(position.open, "Position is closed");
+        require(subjectToLiquidation(positionId), "Liquidation criteria are not met");
 
-        if (position.frozenTime > 0) {
-            require(position.frozenTime < block.timestamp);
+        if (position.frozenTime > 0) 
+        {
+            require(position.frozenTime < block.timestamp, "Single block liquidations are not allowed");
             uint256 frozenDuration = block.timestamp - position.frozenTime;
-            // On the first hour after a position is frozen, only the party that initiated the freeze can liquidate it.
-            if (frozenDuration <= MAX_FREEZE_DURATION) {
-                require(msg.sender == position.liquidator);
+            if (frozenDuration <= MAX_FREEZE_DURATION) 
+            {
+                //require(msg.sender == position.liquidator); Anyone can liquidate the position
                 _liquidate(positionId, receiver);
                 emit Liquidation(positionId, positions[positionId].orderId, msg.sender, receiver);
-            } else {
-                position.frozenTime = 0;
-                position.liquidator = address(0);
             }
-
-        } else if (subjectToLiquidation(positionId)) {
+            else
+            {
+                position.frozenTime = block.timestamp;
+                position.liquidator = msg.sender;
+                emit PositionFrozen(positionId, msg.sender, block.timestamp);
+            }
+        }
+        else
+        {
             position.frozenTime = block.timestamp;
             position.liquidator = msg.sender;
             emit PositionFrozen(positionId, msg.sender, block.timestamp);
