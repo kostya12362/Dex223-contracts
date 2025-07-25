@@ -840,7 +840,9 @@ contract MarginModule is Multicall, IOrderParams
         emit OrderDeposit(_orderId, address(0), msg.value);
     }
 
-    function orderDepositWETH9(uint256 _orderId, address _WETH9) public payable onlyOrderOwner(_orderId) {
+    function orderDepositWETH9(uint256 _orderId, address _WETH9) public payable 
+        onlyOrderOwner(_orderId)
+    {
         require(isOrderOpen(_orderId), "Order is expired");
         require(orders[_orderId].baseAsset == _WETH9);
 
