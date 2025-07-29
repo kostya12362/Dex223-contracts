@@ -12,6 +12,24 @@ import '../libraries/TickMath.sol';
 import '../tokens/interfaces/IERC223.sol';
 import './Dex223Oracle.sol';
 
+interface IExactInputSingleParams {
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+        bool    prefer223Out;
+    }
+}
+
+interface IUtilitySwapRouter is IExactInputSingleParams {
+    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
+}
+
 // TODO: Add new function that displays Pools for existing assets in a position
 
 abstract contract IERC20 {
@@ -193,7 +211,7 @@ interface INFPM is IMintParams {
     );
 }
 
-contract UtilityModuleCfg is IOrderParams, IMintParams
+contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
 {
     // This contracts serves testing and examinign purposes
     // It can be used to perform basic operations in a batch
@@ -228,8 +246,10 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
     address public oracle;
     address public factory;
     address public NFPM;
+    address public Router;
 
     uint256 public last_order_id;
+    uint256 public last_position_id;
 
     address public converter = 0x5847f5C0E09182d9e75fE8B1617786F62fee0D9F; // Standard Sepolian converter.
 
@@ -242,7 +262,11 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
 
     constructor()
     {
-        factory = 0x3BD240DC11601223e35F2b803905b832c2798c2c;
+        factory = 0x5D63230470AB553195dfaf794de3e94C69d150f9;
+        oracle        = 0x5572A0d34E98688B16324f87F849242D050AD8D5;
+        converter = 0x5847f5C0E09182d9e75fE8B1617786F62fee0D9F;
+        NFPM = 0x068754A9fd1923D5C7B2Da008c56BA0eF0958d7e;
+        Router = 0x99504DbaA0F9368E9341C15F67377D55ED4AC690;
         IERC20(XE_token).mint(address(this), 99999999999999 * 10**18);
         IERC20(HE_token).mint(address(this), 99999999999999 * 10**18);
 
@@ -256,13 +280,14 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
         oracle = address(new PureOracle(factory));
     }
 
-    function set(address _factory, address _mm, address _oracle, address _converter, address _nfpm) public
+    function set(address _factory, address _mm, address _oracle, address _converter, address _nfpm, address _router) public
     {
         factory = _factory;
         margin_module = _mm;
         oracle        = _oracle;
         converter = _converter;
         NFPM = _nfpm;
+        Router = _router;
     }
 
     function setDefaults(address _mm) public 
@@ -272,12 +297,13 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
         oracle        = 0x5572A0d34E98688B16324f87F849242D050AD8D5;
         converter = 0x5847f5C0E09182d9e75fE8B1617786F62fee0D9F;
         NFPM = 0x068754A9fd1923D5C7B2Da008c56BA0eF0958d7e;
+        Router = 0x99504DbaA0F9368E9341C15F67377D55ED4AC690;
     }
 
     function x0_MakeTokens() public
     {
-        token0    = address(new ERC20Token("Foo Token", "FOO", 18, 133000 * 10**18));
-        token1    = address(new ERC20Token("Bar Token", "BAR", 18, 244011 * 10**18));
+        token0    = address(new ERC20Token("Foo Token", "FOO", 18, 1330000 * 10**18));
+        token1    = address(new ERC20Token("Bar Token", "BAR", 18, 2440110 * 10**18));
         liq_token = address(new ERC20Token("Special Token to pay Liquidation rewards", "LIQ", 18, 7590000 * 10**18));
 
         if (token0 > token1)
@@ -287,8 +313,25 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
             token1 = _tmp;
         }
 
-        IERC20Minimal(token0).transfer(msg.sender, 10000 * 10**18);
-        IERC20Minimal(token1).transfer(msg.sender, 10000 * 10**18);
+        IERC20Minimal(token0).transfer(msg.sender, 100000 * 10**18);
+        IERC20Minimal(token1).transfer(msg.sender, 100000 * 10**18);
+    }
+
+    function x0_MakeTokens(string memory name1, string memory symbol1, uint8 decimals1, string memory name2, string memory symbol2, uint8 decimals2, address receiver) public 
+    {
+        token0    = address(new ERC20Token(name1, symbol1, decimals1, 1330000 * 10**18));
+        token1    = address(new ERC20Token(name2, symbol2, decimals2, 2440110 * 10**18));
+        liq_token = address(new ERC20Token("Special Token to pay Liquidation rewards", "LIQ", 18, 7511100 * 10**18));
+
+        if (token0 > token1)
+        {
+            address _tmp = token0;
+            token0 = token1;
+            token1 = _tmp;
+        }
+
+        IERC20Minimal(token0).transfer(receiver, 100000 * 10**18);
+        IERC20Minimal(token1).transfer(receiver, 100000 * 10**18);
     }
 
     function x1_MakeReservePool() public
@@ -299,7 +342,7 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
             ITokenStandardConverter(converter).predictWrapperAddress(token0, true),
             ITokenStandardConverter(converter).predictWrapperAddress(token1, true),
             3000,
-            2493578422612728506914605883
+            79222658584949219009610187281
         );
     }
 
@@ -311,7 +354,7 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
             ITokenStandardConverter(converter).predictWrapperAddress(token0, true),
             ITokenStandardConverter(converter).predictWrapperAddress(token1, true),
             10000,
-            2493578422612728506914605883
+            79222658584949219009610187281
         );
     }
 
@@ -340,10 +383,15 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
         INFPM(NFPM).mint(_mintParams);
     }
 
-    function step0_MakeOracle(address _factory) public
+    function step0_MakePureOracle(address _factory) public
     {
         //address _oracle = deploy PureOracle(_factory);
         oracle = address(new PureOracle(_factory));
+    }
+
+    function step0_MakePriceOracle(address _factory) public 
+    {
+        oracle = address(new Oracle(_factory));
     }
 
     event Step1(bytes32);
@@ -369,7 +417,13 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
 
     function step2_MakeOrder() public 
     {
-        OrderExpiration memory _orderDeath = OrderExpiration(103, token0, 4294967290);
+        // token1 becomes baseAsset for the order
+        // liqToken is assigned as liquidation reward
+        // token0 becomes collateral and whitelisted for trading
+
+
+
+        //OrderExpiration memory _orderExpiry = OrderExpiration(103, token0, 4294967290);
 
 /*      bytes32 whitelistId;
         uint256 interestRate;
@@ -407,10 +461,57 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
         // ["0x050afabcae45ca12d82e4e72a31b41705e9349d547c5502b13ca38747125a648", "216000000", "4800", "725", "725", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", "1949519966", "4", "10", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", ["0x8f5ea3d9b780da2d0ab6517ac4f6e697a948794f", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa"]]
     }
 
+    function step2_MakeSlowOrder() public 
+    {
+        // token1 becomes baseAsset for the order
+        // liqToken is assigned as liquidation reward
+        // token0 becomes collateral and whitelisted for trading
+        // token1 is also whitelisted for trading
+
+
+
+        //OrderExpiration memory _orderExpiry = OrderExpiration(103, token0, 4294967290);
+
+/*      bytes32 whitelistId;
+        uint256 interestRate;
+        uint256 duration;
+        uint256 minLoan;
+        uint256 liquidationRewardAmount;
+        address liquidationRewardAsset;
+        address asset;
+        uint32 deadline;
+        uint16 currencyLimit;
+        uint8 leverage;
+        address oracle;
+        address[] collateral;
+        */
+        address[] memory _collateralTkn = new address[](1);
+        _collateralTkn[0] = token0;
+        OrderParams memory _params;
+        _params.whitelistId             = tokenWlist;
+        _params.interestRate            = 7200000; // 1% hour? Needs additional clarification.
+        _params.duration                = 4800;
+        _params.minLoan                 = 0;
+        _params.liquidationRewardAmount = 103;
+        _params.liquidationRewardAsset  = liq_token;
+        _params.asset                   = token1;
+        _params.deadline                = 4294967290; // Infinity.
+        _params.currencyLimit           = 4;
+        _params.leverage                = 10;         // 10x << Max leverage
+        _params.oracle                  = oracle;
+        _params.collateral              = _collateralTkn;
+
+        last_order_id = MarginModule(margin_module).createOrder(
+            _params
+        );
+
+        // ["0x050afabcae45ca12d82e4e72a31b41705e9349d547c5502b13ca38747125a648", "216000000", "4800", "725", "725", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", "1949519966", "4", "10", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", ["0x8f5ea3d9b780da2d0ab6517ac4f6e697a948794f", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa"]]
+    }
+
     function step3_SupplyOrder() public 
     {
         
-        if(IERC20(token0).allowance(address(this), margin_module) <= 100000000000)
+        if(IERC20(token0).allowance(address(this), margin_module) <= 1000000000000000000000)
         {
             IERC20(token0).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
             IERC20(token1).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
@@ -420,21 +521,21 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
         MarginModule(margin_module).orderDepositToken(last_order_id, 1500 * 10**18);
     }
 
-    function step3_SupplyOrder(uint256 _id) public 
+    function step3_SupplyOrder(uint256 _id, uint256 _amount) public 
     {
-        if(IERC20(token0).allowance(address(this), margin_module) <= 100000000000)
+        if(IERC20(token0).allowance(address(this), margin_module) <= 1000000000000000000000)
         {
             IERC20(token0).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
             IERC20(token1).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
             IERC20(liq_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
         }
 
-        MarginModule(margin_module).orderDepositToken(_id, 1500 * 10**18);
+        MarginModule(margin_module).orderDepositToken(_id, _amount);
     }
 
     function step4_MakePosition() public 
     {
-        if(IERC20(token0).allowance(address(this), margin_module) <= 100000000000)
+        if(IERC20(token0).allowance(address(this), margin_module) <= 1000000000000000000000)
         {
             IERC20(token0).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
             IERC20(token1).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
@@ -445,8 +546,159 @@ contract UtilityModuleCfg is IOrderParams, IMintParams
             last_order_id,
             500 * 10**18,
             0,
-            250 * 10**18 // 250 -> 750 >>> 3x leverage
+            250 * 10**18 // 250 -> 750 >>> 3x leverage.
         );
+
+        last_position_id = MarginModule(margin_module).getPositionsLength() - 1;
+    }
+
+    function step4_MakePosition(uint256 _amountToTake, uint256 _collateral) public 
+    {
+        if(IERC20(token0).allowance(address(this), margin_module) <= 1000000000000000000000)
+        {
+            IERC20(token0).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(token1).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(liq_token).approve(margin_module, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+        }
+
+        MarginModule(margin_module).takeLoan(
+            last_order_id,
+            _amountToTake,
+            0,
+            _collateral // Must not exceed max leverage here.
+        );
+
+        last_position_id = MarginModule(margin_module).getPositionsLength() - 1;
+    }
+
+    function step5_MarginSwap() public 
+    {
+
+        /*
+        uint256 _positionId,
+        uint256 _assetId1,
+        uint256 _whitelistId1, // Internal ID in the whitelisted array. If set to 0
+                               // then the asset must be found in an auto-listing contract.
+        uint256 _whitelistId2,
+        uint256 _amount,
+        address _asset2,
+        uint24 _feeTier
+        */
+
+        // Swaps 100 base asset (token1) for token0 via 10000Pool.
+
+        MarginModule(margin_module).marginSwap(
+        last_position_id, // Swap from the last position.
+        0,                // Swapping base asset.
+        1,                // whitelist ID = 1, swapping for the other token held in the order.
+        0,                // 
+        100 * 10**18,     // 100 tokens swapped
+        token0,           // Address of the other token.
+        10000);           // Fee-tier, we created 10000 so its the only pool that must exist.
+    }
+
+    function step5_MarginSwapAll() public 
+    {
+
+        /*
+        uint256 _positionId,
+        uint256 _assetId1,
+        uint256 _whitelistId1, // Internal ID in the whitelisted array. If set to 0
+                               // then the asset must be found in an auto-listing contract.
+        uint256 _whitelistId2,
+        uint256 _amount,
+        address _asset2,
+        uint24 _feeTier
+        */
+
+        // Swaps 100 base asset (token1) for token0 via 10000Pool.
+
+        MarginModule(margin_module).marginSwap(
+        last_position_id, // Swap from the last position.
+        0,                // Swapping base asset.
+        1,                // whitelist ID = 1, swapping for the other token held in the order.
+        0,                // 
+        MarginModule(margin_module).getPositionBalances(last_position_id)[0],
+        token0,           // Address of the other token.
+        10000);           // Fee-tier, we created 10000 so its the only pool that must exist.
+    }
+    
+    function step6_SwapViaPool() public 
+    {
+        if(IERC20(token0).allowance(address(this), Router) <= 1000000000000000000000)
+        {
+            IERC20(token0).approve(Router, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+        }
+        
+        /*
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+        bool    prefer223Out;
+    }
+    */
+
+        ExactInputSingleParams memory _params;
+        _params.tokenIn  = token0;
+        _params.tokenOut = token1;
+        _params.fee       = 10000;
+        _params.recipient = msg.sender;
+        _params.deadline  = block.timestamp + 1;
+        _params.amountIn  = 3000 * 10**18;
+        _params.amountOutMinimum = 0;
+        _params.sqrtPriceLimitX96 = 4295128740;
+        _params.prefer223Out = false;
+        IUtilitySwapRouter(Router).exactInputSingle(_params);
+    }
+    
+    function step6_SwapViaPool(address _tokenIn, uint256 _amount, uint160 sqrtPriceLimit) public 
+    {
+        if(IERC20(token0).allowance(address(this), Router) <= 1000000000000000000000)
+        {
+            IERC20(token0).approve(Router, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+        }
+        
+        /*
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+        bool    prefer223Out;
+    }
+    */
+        ExactInputSingleParams memory _params;
+        _params.tokenIn  = _tokenIn;
+        if(_tokenIn == token0)
+        {
+            _params.tokenOut = token1;
+        }
+        if(_tokenIn == token1)
+        {
+            _params.tokenOut = token0;
+        }
+        if(_params.tokenOut == address(0))
+        {
+            revert("Undefined token.");
+        }
+        _params.fee       = 10000;
+        _params.recipient = msg.sender;
+        _params.deadline  = block.timestamp + 1;
+        _params.amountIn  = _amount;
+        _params.amountOutMinimum = 0;
+        _params.sqrtPriceLimitX96 = sqrtPriceLimit;
+        _params.prefer223Out = false;
+        IUtilitySwapRouter(Router).exactInputSingle(_params);
     }
 }
 
@@ -465,8 +717,8 @@ contract MarginModule is Multicall, IOrderParams
     mapping (bytes32 => Tokenlist) public tokenlists;
     mapping (uint256 => address)  public positionInitialCollateral;
 
-    uint256 internal orderIndex;
-    uint256 internal positionIndex;
+    uint256 public orderIndex;
+    uint256 public positionIndex;
 
     event OrderCreated(
         uint256 indexed orderId,
@@ -973,7 +1225,8 @@ contract MarginModule is Multicall, IOrderParams
         balances.pop();
     }
 
-    function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public payable {
+    function takeLoan(uint256 _orderId, uint256 _amount, uint256 _collateralIdx, uint256 _collateralAmount) public payable
+    {
         // Make sure that both collateralToken and LiquidationRewardToken are approved
         // in sufficient quantity.
         require(isOrderOpen(_orderId), "Order is expired");
@@ -1293,7 +1546,7 @@ contract MarginModule is Multicall, IOrderParams
         return totalValueInBaseAsset < requiredAmount;
     }
 
-    function subjectToLiquidationExtended(uint256 positionId) public view returns (bool subjectToLiquidation, address liquidator, uint256 frozenTimestamp)
+    function subjectToLiquidationExtended(uint256 positionId) public view returns (bool _subjectToLiquidation, address liquidator, uint256 frozenTimestamp)
     {
         Position storage position = positions[positionId];
         return (this.subjectToLiquidation(positionId), position.liquidator, position.frozenTime);
