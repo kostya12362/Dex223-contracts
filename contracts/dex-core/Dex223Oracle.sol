@@ -7,7 +7,23 @@ interface IUniswapV3Factory {
     function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address pool);
 }
 
+interface IDex223PoolQuotable
+{
+    function quoteSwap(
+        address recipient,
+        bool zeroForOne,
+        int256 amountSpecified,
+        uint160 sqrtPriceLimitX96,
+        bool prefer223,
+        bytes memory data
+    ) external returns (int256 delta);
+}
+
 contract Oracle {
+    // WARNING! This oracle runs approximations
+    // by slashing down amounts to 5 digits
+    // therefore sacrificing precision when computing liquidations
+    // and leverage.
 
     function getSqrtPriceX96(address poolAddress) public view returns(uint160 sqrtPriceX96) {
         IUniswapV3Pool pool;
@@ -35,25 +51,56 @@ contract Oracle {
     }
 
     // out = buy, in = sell
+    /*
     function getAmountOut(
-        address poolAddress,
+        //address poolAddress,
+        address sell,
+        address buy,
+        uint256 quantity
+    ) public returns(uint256 amountForBuy) {
+        (address poolAddress,,) = findPoolWithHighestLiquidity(buy, sell);
+        
+        uint256 result = uint256(-(IDex223Pool(poolAddress).quoteSwap(
+            address(this),
+            sell < buy,
+            int256(quantity),
+            0,
+            false,
+            ""
+        )));
+    }
+    */
+        // out = buy, in = sell
+    function getAmountOut(
         address buy,
         address sell,
-        uint256 amountForSell
-    ) public view returns(uint256 amountForBuy) {
+        uint256 amountToSell
+    ) public view returns(uint256 amountBought) {
+        (address _pool, uint128 liquidity, uint24 fee) = findPoolWithHighestLiquidity(buy, sell);
 
-        (uint256 priceX96, bool needToInverse) = getPrice(poolAddress, buy, sell);
+        //amountBought = uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;  <<< This is a true formula
 
-        if (needToInverse) {
-            amountForBuy = (amountForSell * priceX96) >> 192;
-        } else {
-            amountForBuy = (amountForSell << 192) / priceX96;
+        if(amountToSell > 100000)
+        {
+            uint256 _calculatedPrecision;
+            uint256 sum = amountToSell;
+            for (_calculatedPrecision = 0; sum != 0; _calculatedPrecision++) 
+            {
+                sum = sum / 10;
+            }
+            amountToSell = amountToSell / 10**(_calculatedPrecision - 5); // Expose only the first 5 digits to the calculations
+
+            amountBought = uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;
+
+            return amountBought * 10**(_calculatedPrecision - 5); // Slashes down decimals significantly but provides rough price prediction.
         }
-
-        return amountForBuy;
+        else 
+        {
+            return uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;
+        }
     }
 
-    IUniswapV3Factory public immutable factory;
+    IUniswapV3Factory public factory;
 
     uint24[] public feeTiers = [500, 3000, 10000];
 
@@ -64,7 +111,7 @@ contract Oracle {
     function findPoolWithHighestLiquidity(
         address tokenA,
         address tokenB
-    ) external view returns (address poolAddress, uint128 liquidity, uint24 fee) {
+    ) public view returns (address poolAddress, uint128 liquidity, uint24 fee) {
         require(tokenA != tokenB);
         require(tokenA != address(0));
 
