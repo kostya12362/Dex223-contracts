@@ -20,10 +20,7 @@ interface IDex223PoolQuotable
 }
 
 contract Oracle {
-    // WARNING! This oracle runs approximations
-    // by slashing down amounts to 5 digits
-    // therefore sacrificing precision when computing liquidations
-    // and leverage.
+    uint256 public pricePrecisionDecimals = 6;
 
     function getSqrtPriceX96(address poolAddress) public view returns(uint160 sqrtPriceX96) {
         IUniswapV3Pool pool;
@@ -80,7 +77,7 @@ contract Oracle {
 
         //amountBought = uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;  <<< This is a true formula
 
-        if(amountToSell > 100000)
+        if(amountToSell > 10**pricePrecisionDecimals)
         {
             uint256 _calculatedPrecision;
             uint256 sum = amountToSell;
@@ -88,16 +85,22 @@ contract Oracle {
             {
                 sum = sum / 10;
             }
-            amountToSell = amountToSell / 10**(_calculatedPrecision - 5); // Expose only the first 5 digits to the calculations
+            amountToSell = amountToSell / 10**(_calculatedPrecision - pricePrecisionDecimals); // Expose only the first 5 digits to the calculations
 
             amountBought = uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;
 
-            return amountBought * 10**(_calculatedPrecision - 5); // Slashes down decimals significantly but provides rough price prediction.
+            amountBought = amountBought * 10**(_calculatedPrecision - pricePrecisionDecimals);
         }
         else 
         {
-            return uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;
+            amountBought = uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;
         }
+        if(sell > buy)
+        {
+            uint256 _actualPrice = amountToSell / amountBought;
+            amountBought = amountToSell * _actualPrice;
+        }
+        return amountBought; // Slashes down decimals significantly but provides rough price prediction.
     }
 
     IUniswapV3Factory public factory;
