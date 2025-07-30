@@ -277,10 +277,10 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
         token1 = HE_token;
         liq_token = HE_token;
 
-        oracle = address(new PureOracle(factory));
+        oracle = address(new Oracle(factory));
     }
 
-    function set(address _factory, address _mm, address _oracle, address _converter, address _nfpm, address _router) public
+    function set(address _factory, address _mm, address _oracle, address _converter, address _nfpm, address _router, address _tkn0, address _tkn1, address _liq) public
     {
         factory = _factory;
         margin_module = _mm;
@@ -288,13 +288,16 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
         converter = _converter;
         NFPM = _nfpm;
         Router = _router;
+        token0 = _tkn0;
+        token1 = _tkn1;
+        liq_token = _liq;
     }
 
     function setDefaults(address _mm) public 
     {
         factory = 0x5D63230470AB553195dfaf794de3e94C69d150f9;
         margin_module = _mm;
-        oracle        = 0x5572A0d34E98688B16324f87F849242D050AD8D5;
+        //oracle        = 0x5572A0d34E98688B16324f87F849242D050AD8D5;
         converter = 0x5847f5C0E09182d9e75fE8B1617786F62fee0D9F;
         NFPM = 0x068754A9fd1923D5C7B2Da008c56BA0eF0958d7e;
         Router = 0x99504DbaA0F9368E9341C15F67377D55ED4AC690;
@@ -315,6 +318,7 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
 
         IERC20Minimal(token0).transfer(msg.sender, 100000 * 10**18);
         IERC20Minimal(token1).transfer(msg.sender, 100000 * 10**18);
+        IERC20Minimal(liq_token).transfer(msg.sender, 100000 * 10**18);
     }
 
     function x0_MakeTokens(string memory name1, string memory symbol1, uint8 decimals1, string memory name2, string memory symbol2, uint8 decimals2, address receiver) public 
@@ -332,6 +336,7 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
 
         IERC20Minimal(token0).transfer(receiver, 100000 * 10**18);
         IERC20Minimal(token1).transfer(receiver, 100000 * 10**18);
+        IERC20Minimal(liq_token).transfer(msg.sender, 100000 * 10**18);
     }
 
     function x1_MakeReservePool() public
@@ -373,8 +378,8 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
         10000,
         -887200,
         887200,
-        5000 * 10**18,
-        5000 * 10**18,
+        50000 * 10**18,
+        50000 * 10**18,
         0,
         0,
         creator,
@@ -489,7 +494,7 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
         _collateralTkn[0] = token0;
         OrderParams memory _params;
         _params.whitelistId             = tokenWlist;
-        _params.interestRate            = 7200000; // 1% hour? Needs additional clarification.
+        _params.interestRate            = 72000; // 1% hour? Needs additional clarification.
         _params.duration                = 4800;
         _params.minLoan                 = 0;
         _params.liquidationRewardAmount = 103;
@@ -544,9 +549,9 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
 
         MarginModule(margin_module).takeLoan(
             last_order_id,
-            500 * 10**18,
+            50 * 10**18,
             0,
-            250 * 10**18 // 250 -> 750 >>> 3x leverage.
+            25 * 10**18 // 250 -> 750 >>> 3x leverage.
         );
 
         last_position_id = MarginModule(margin_module).getPositionsLength() - 1;
@@ -592,9 +597,11 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
         0,                // Swapping base asset.
         1,                // whitelist ID = 1, swapping for the other token held in the order.
         0,                // 
-        100 * 10**18,     // 100 tokens swapped
+        10 * 10**18,      // 100 tokens swapped
         token0,           // Address of the other token.
-        10000);           // Fee-tier, we created 10000 so its the only pool that must exist.
+        10000,            // Fee-tier, we created 10000 so its the only pool that must exist.
+        0,
+        0);               // Unlimited sqrtPriceLimitX96
     }
 
     function step5_MarginSwapAll() public 
@@ -620,7 +627,9 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
         0,                // 
         MarginModule(margin_module).getPositionBalances(last_position_id)[0],
         token0,           // Address of the other token.
-        10000);           // Fee-tier, we created 10000 so its the only pool that must exist.
+        10000,          // Fee-tier, we created 10000 so its the only pool that must exist.
+        0,
+        0);               // Unlimited sqrtPriceLimitX96
     }
     
     function step6_SwapViaPool() public 
@@ -650,7 +659,7 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
         _params.fee       = 10000;
         _params.recipient = msg.sender;
         _params.deadline  = block.timestamp + 1;
-        _params.amountIn  = 3000 * 10**18;
+        _params.amountIn  = 10000 * 10**18; // In default scenario this is 20% of the total pool liquidity
         _params.amountOutMinimum = 0;
         _params.sqrtPriceLimitX96 = 4295128740;
         _params.prefer223Out = false;
@@ -659,9 +668,9 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
     
     function step6_SwapViaPool(address _tokenIn, uint256 _amount, uint160 sqrtPriceLimit) public 
     {
-        if(IERC20(token0).allowance(address(this), Router) <= 1000000000000000000000)
+        if(IERC20(_tokenIn).allowance(address(this), Router) <= 1000000000000000000000)
         {
-            IERC20(token0).approve(Router, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+            IERC20(_tokenIn).approve(Router, 1157920892373161954235709850086879078532699846656405640394575840079131296);
         }
         
         /*
@@ -699,6 +708,50 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
         _params.sqrtPriceLimitX96 = sqrtPriceLimit;
         _params.prefer223Out = false;
         IUtilitySwapRouter(Router).exactInputSingle(_params);
+    }
+    
+    function step7_LiquidatingSwapViaPool() public 
+    {
+        if(IERC20(token0).allowance(address(this), Router) <= 1000000000000000000000)
+        {
+            IERC20(token0).approve(Router, 1157920892373161954235709850086879078532699846656405640394575840079131296);
+        }
+        
+        /*
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+        bool    prefer223Out;
+    }
+    */
+
+        ExactInputSingleParams memory _params;
+        _params.tokenIn  = token0;
+        _params.tokenOut = token1;
+        _params.fee       = 10000;
+        _params.recipient = msg.sender;
+        _params.deadline  = block.timestamp + 1;
+        _params.amountIn  = 52200 * 10**18; // Huge amount of tokens that will push the price into liquidation range.
+        _params.amountOutMinimum = 0;
+        _params.sqrtPriceLimitX96 = 4295128740;
+        _params.prefer223Out = false;
+        IUtilitySwapRouter(Router).exactInputSingle(_params);
+    }
+    
+    function step8_FreezeForLiquidation() public 
+    {
+        MarginModule(margin_module).liquidate(last_position_id, address(this));
+    }
+    
+    function step9_ConfirmLiquidation() public 
+    {
+        MarginModule(margin_module).liquidate(last_position_id, address(this));
     }
 }
 
@@ -877,8 +930,6 @@ contract MarginModule is Multicall, IOrderParams
 
         uint256 initialBalance;
         uint256 interest;
-
-        uint256 paidDays;
         bool open;
         uint256 frozenTime;
         address liquidator;
@@ -1251,7 +1302,25 @@ contract MarginModule is Multicall, IOrderParams
         address[] memory _assets;
         uint256[] memory _balances;
 
-        Position memory _newPosition = Position(_orderId,
+        /* struct Position {
+        uint256 orderId;
+        address owner;
+
+        address[] assets;
+        uint256[] balances;
+
+        uint256 deadline;
+        uint256 createdAt;
+
+        uint256 initialBalance;
+        uint256 interest;
+        bool open;
+        uint256 frozenTime;
+        address liquidator;
+    } */
+
+        Position memory _newPosition = Position(
+            _orderId,
             msg.sender,
             _assets,
             _balances,
@@ -1260,7 +1329,6 @@ contract MarginModule is Multicall, IOrderParams
             block.timestamp,
             _amount,
             order.interestRate,
-            0,
             true,
             0,
             address(0));
@@ -1315,14 +1383,17 @@ contract MarginModule is Multicall, IOrderParams
         positionIndex++;
     }
 
-    function marginSwap(uint256 _positionId,
+    function marginSwap(
+        uint256 _positionId,
         uint256 _assetId1,
         uint256 _whitelistId1, // Internal ID in the whitelisted array. If set to 0
                                // then the asset must be found in an auto-listing contract.
         uint256 _whitelistId2,
         uint256 _amount,
         address _asset2,
-        uint24 _feeTier
+        uint24 _feeTier,
+        uint256 _minAmountOut,
+        uint160 _priceLimitX96
     ) public {
 
         Position storage position = positions[_positionId];
@@ -1353,8 +1424,8 @@ contract MarginModule is Multicall, IOrderParams
             recipient: address(this),
             deadline: block.timestamp,
             amountIn: _amount,
-            amountOutMinimum: 0,
-            sqrtPriceLimitX96: 0,
+            amountOutMinimum: _minAmountOut,
+            sqrtPriceLimitX96: _priceLimitX96,
             prefer223Out: false
         });
         uint256 amountOut = ISwapRouter(router).exactInputSingle(swapParams);
@@ -1784,7 +1855,7 @@ contract MarginModule is Multicall, IOrderParams
         return positions[_positionId].assets.length + 1 <= orders[positions[_positionId].orderId].currencyLimit;
     }
 
-    function tokenReceived(address user, uint256 value, bytes memory data) public returns (bytes4) {
+    function tokenReceived(address user, uint256 value, bytes memory /*data*/) public returns (bytes4) {
         address asset = msg.sender;
         erc223deposit[user][asset] += value;
         
@@ -1817,7 +1888,7 @@ contract MarginModule is Multicall, IOrderParams
         if (token0 == asset || token1 == asset) {
             marginSwap223(positionId, getAssetId(positionId, asset), idInWl0, idInWl1, amount, order.baseAsset, fee);
         } else {
-            marginSwap(positionId, getAssetId(positionId, asset), idInWl0, idInWl1, amount, order.baseAsset, fee);
+            marginSwap(positionId, getAssetId(positionId, asset), idInWl0, idInWl1, amount, order.baseAsset, fee, 0, 0);
         }
 
         // Return new base asset balance
