@@ -744,14 +744,91 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
         IUtilitySwapRouter(Router).exactInputSingle(_params);
     }
     
+    function step7_OneForZeroSwapViaPool() public 
+    {
+        step6_SwapViaPool(token1, 52700 * 10**18, 0);
+    }
+    
     function step8_FreezeForLiquidation() public 
     {
         MarginModule(margin_module).liquidate(last_position_id, address(this));
     }
     
+    function step8_PositionSwapbackToClose() public 
+    {
+        /*
+        uint256 _positionId,
+        uint256 _assetId1,
+        uint256 _whitelistId1, // Internal ID in the whitelisted array. If set to 0
+                               // then the asset must be found in an auto-listing contract.
+        uint256 _whitelistId2,
+        uint256 _amount,
+        address _asset2,
+        uint24 _feeTier,
+        uint256 _minAmountOut,
+        uint160 _priceLimitX96
+        */
+        MarginModule(margin_module).marginSwap(
+        last_position_id, // Swap from the last position.
+        1,                // Swapping token0
+        0,                // whitelist ID = 1, swapping for the other token held in the order.
+        1,                // 
+        10 * 10**18,
+        token1,           // Address of the other token.
+        10000,            // Fee-tier, we created 10000 so its the only pool that must exist.
+        0,
+        0);  
+    }
+    
+    function step8_PositionSwapback(uint256 _amount) public 
+    {
+        /*
+        uint256 _positionId,
+        uint256 _assetId1,
+        uint256 _whitelistId1, // Internal ID in the whitelisted array. If set to 0
+                               // then the asset must be found in an auto-listing contract.
+        uint256 _whitelistId2,
+        uint256 _amount,
+        address _asset2,
+        uint24 _feeTier,
+        uint256 _minAmountOut,
+        uint160 _priceLimitX96
+        */
+        MarginModule(margin_module).marginSwap(
+        last_position_id, // Swap from the last position.
+        1,                // Swapping token0
+        0,                // whitelist ID = 1, swapping for the other token held in the order.
+        1,                // 
+        _amount,
+        token1,           // Address of the other token.
+        10000,            // Fee-tier, we created 10000 so its the only pool that must exist.
+        0,
+        0);  
+    }
+    
     function step9_ConfirmLiquidation() public 
     {
         MarginModule(margin_module).liquidate(last_position_id, address(this));
+    }
+
+    function step9_ClosePosition() public 
+    {
+        MarginModule(margin_module).positionClose(last_position_id, false);
+    }
+
+    function step9_ClosePosition(uint256 id, bool autosell) public 
+    {
+        MarginModule(margin_module).positionClose(id, autosell);
+    }
+
+    function token_setup() public 
+    {
+        // Makes all the preparation steps x0-x2
+        // in one transaction.
+
+        x0_MakeTokens();
+        x1_MakePool10000();
+        x2_Liquidity();
     }
 }
 
@@ -820,7 +897,9 @@ contract MarginModule is Multicall, IOrderParams
         uint256 indexed positionId,
         address indexed owner,
         uint256 loanAmount,
-        address baseAsset
+        address baseAsset, 
+        address collateral, 
+        uint256 collateral_amount
     );
 
     event PositionDeposit(
@@ -1286,18 +1365,19 @@ contract MarginModule is Multicall, IOrderParams
         require(tokenlists[order.whitelist].tokens.length != 0, "Orders whitelist is empty");
 
         require(_collateralIdx < order.collateralAssets.length, "Collaterals error");
-        address collateralAsset = order.collateralAssets[_collateralIdx];
+        //address _collateralAsset = order.collateralAssets[_collateralIdx];  // Commented out to avoid "stack too deep" error.
+                                                                              // Have to read order.collateralAssets[..] every time to bypass EVM limitations.
 
         require(order.minLoan <= _amount, "Minloan error");
         require(order.balance >= _amount, "Balance error");
 
         // leverage validation:
         // (collateral + loaned_asset) / collateral <= order.leverage
-        uint256 collateralEquivalentInBaseAsset = _getEquivalentInBaseAsset(collateralAsset, _collateralAmount, order.baseAsset, _orderId);
+        uint256 collateralEquivalentInBaseAsset = _getEquivalentInBaseAsset(order.collateralAssets[_collateralIdx], _collateralAmount, order.baseAsset, _orderId);
         
-        uint256 leverage = (collateralEquivalentInBaseAsset + _amount) / collateralEquivalentInBaseAsset;
-        require(leverage <= MAX_UINT8, "Leverage exceeds maxuint8");
-        require(uint8(leverage) <= order.leverage, "Leverage error");
+        //uint256 leverage = (collateralEquivalentInBaseAsset + _amount) / collateralEquivalentInBaseAsset;  // Can't use specified variable to avoid "stack too deep" error.
+        require((collateralEquivalentInBaseAsset + _amount) / collateralEquivalentInBaseAsset <= MAX_UINT8, "Leverage exceeds maxuint8");
+        require(uint8((collateralEquivalentInBaseAsset + _amount) / collateralEquivalentInBaseAsset) <= order.leverage, "Leverage error");
 
         address[] memory _assets;
         uint256[] memory _balances;
@@ -1333,23 +1413,23 @@ contract MarginModule is Multicall, IOrderParams
             0,
             address(0));
 
-        positionInitialCollateral[positionIndex] = collateralAsset;
+        positionInitialCollateral[positionIndex] = order.collateralAssets[_collateralIdx];
         positions[positionIndex] = _newPosition;
 
         order.balance -= _amount;
         addAsset(positionIndex, order.baseAsset, _amount);
-        addAsset(positionIndex, collateralAsset, _collateralAmount);
+        addAsset(positionIndex, order.collateralAssets[_collateralIdx], _collateralAmount);
 
         uint256 receivedEth = msg.value;
 
         // Deposit collateral
         // In case the collateral asset is Ether
-        if (collateralAsset == address(0)) {
+        if (order.collateralAssets[_collateralIdx] == address(0)) {
             require(receivedEth >= _collateralAmount, "ETH reception error");
             receivedEth -= _collateralAmount;
         // or ERC-20
         } else {
-            _receiveAsset(collateralAsset, _collateralAmount);
+            _receiveAsset(order.collateralAssets[_collateralIdx], _collateralAmount);
         }
 
         // Deposit the liquidation reward
@@ -1374,7 +1454,7 @@ contract MarginModule is Multicall, IOrderParams
         // will not modify an Order that has any active positins.
         order_status[_orderId].positions++;
 
-        emit PositionOpened(positionIndex, msg.sender, _amount, order.baseAsset);
+        emit PositionOpened(positionIndex, msg.sender, _amount, order.baseAsset, order.collateralAssets[_collateralIdx], _collateralAmount);
         emit NewAsset(positionIndex, order.baseAsset);
         if (order.collateralAssets[_collateralIdx] != order.baseAsset)
         {
@@ -1669,7 +1749,8 @@ contract MarginModule is Multicall, IOrderParams
         }
     }
 
-    function positionClose(uint256 positionId) public {
+    function positionClose(uint256 positionId, bool autoWithdraw) public {
+        // TODO: Implement autowithdraw if specified as True
         Position storage position = positions[positionId];
         Order storage order = orders[position.orderId];
         require(position.open);
@@ -1717,6 +1798,23 @@ contract MarginModule is Multicall, IOrderParams
         // we can decrease the number of active positions for the parent order.
         // If the number of active positions is 0 then the order owner can modify the order.
         order_status[position.orderId].positions--;
+
+        if(autoWithdraw)
+        {
+            for (uint256 i = 1; i < position.assets.length; i++) 
+            {
+                uint256 _amountToWithdraw = position.balances[i];
+                reduceAsset(positionId, position.assets[i], _amountToWithdraw);
+
+                if (position.assets[i] == address(0)) 
+                {
+                    _sendEth(position.balances[i], position.owner);
+                } else {
+                    _sendAsset(position.assets[i], position.balances[i], position.owner);
+                }
+                emit PositionWithdrawal(positionId, position.assets[i], position.balances[i]);
+            }
+        }
     }
 
     function positionWithdraw(uint256 positionId, address asset) public {
