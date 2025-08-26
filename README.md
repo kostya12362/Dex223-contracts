@@ -39,6 +39,7 @@
 | FREE_AUTOLISTING    | [0x8D13f2795228aB18faeFBdF9461E7E46b5853Bc5](https://etherscan.io/address/0x8D13f2795228aB18faeFBdF9461E7E46b5853Bc5)      |
 | AUTOLISTINGS_REGISTRY | [0xF3129265872004bD235de4Ac5e312254D962cC38](https://etherscan.io/address/0xF3129265872004bD235de4Ac5e312254D962cC38)    |
 | Utility CFG 2 (test helper)  | [0xe752f717b97B940C44E40E18335411c28e892770](https://sepolia.etherscan.io/address/0xe752f717b97B940C44E40E18335411c28e892770#code) | 
+| Margin Module       | [0x4EB266B63bE528B25368f9fBDF5122f2D42C4EC2](https://sepolia.etherscan.io/address/0x4EB266B63bE528B25368f9fBDF5122f2D42C4EC2#code) |
 
 ## Deprecated Ethereum mainnet deployment
 
