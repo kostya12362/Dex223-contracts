@@ -234,7 +234,7 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
         address owner;
         uint256 id;
         bytes32 whitelist;
-        // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35%
+        // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35% per 30 days
         uint256 interestRate;
         uint256 duration;
         uint256 minLoan; // Protection of liquidation process from overload.
@@ -561,7 +561,7 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
             25 * 10**18 // 250 -> 750 >>> 3x leverage.
         );
 
-        last_position_id = MarginModule(margin_module).getPositionsLength() - 1;
+        last_position_id = MarginModule(margin_module).positionIndex() - 1;
     }
 
     function step4_MakePosition(uint256 _orderId, uint256 _amountToTake, uint256 _collateral) public 
@@ -580,7 +580,7 @@ contract UtilityModuleCfg is IOrderParams, IMintParams, IExactInputSingleParams
             _collateral // Must not exceed max leverage here.
         );
 
-        last_position_id = MarginModule(margin_module).getPositionsLength() - 1;
+        last_position_id = MarginModule(margin_module).positionIndex() - 1;
     }
 
     function step5_MarginSwap() public 
@@ -892,7 +892,7 @@ contract UtilityModuleCfg2 is IOrderParams, IMintParams, IExactInputSingleParams
         address owner;
         uint256 id;
         bytes32 whitelist;
-        // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35%
+        // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35% per 30 days.
         uint256 interestRate;
         uint256 duration;
         uint256 minLoan; // Protection of liquidation process from overload.
@@ -1210,7 +1210,7 @@ contract UtilityModuleCfg2 is IOrderParams, IMintParams, IExactInputSingleParams
             25 * 10**18 // 250 -> 750 >>> 3x leverage.
         );
 
-        test_group[_groupId].positionId = MarginModule(margin_module).getPositionsLength() - 1;
+        test_group[_groupId].positionId = MarginModule(margin_module).positionIndex() - 1;
 
         test_group[_groupId].last_step = 4;
     }
@@ -1534,7 +1534,7 @@ contract UtilityBulkPositionCreator is IOrderParams, IMintParams, IExactInputSin
         address owner;
         uint256 id;
         bytes32 whitelist;
-        // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35%
+        // interestRate equal 55 means 0,55% or interestRate equal 3500 means 35% per 30 days.
         uint256 interestRate;
         uint256 duration;
         uint256 minLoan; // Protection of liquidation process from overload.
@@ -1856,7 +1856,7 @@ contract UtilityBulkPositionCreator is IOrderParams, IMintParams, IExactInputSin
             25 * 10**18 // 250 -> 750 >>> 3x leverage.
         );
 
-        test_group[_groupId].positionId = MarginModule(margin_module).getPositionsLength() - 1;
+        test_group[_groupId].positionId = MarginModule(margin_module).positionIndex() - 1;
 
         test_group[_groupId].last_step = 4;
     }
@@ -2060,6 +2060,11 @@ contract MarginModule is Multicall, IOrderParams
         address baseAsset, 
         address collateral, 
         uint256 collateral_amount
+    );
+
+    event InitialLeverage(
+        uint256 positionId,
+        uint256 leverage
     );
 
     event PositionDeposit(
@@ -2308,18 +2313,6 @@ contract MarginModule is Multicall, IOrderParams
         orderIndex++;
         return orderIndex - 1;
     }
-
-    // ActivateOrder is unnecessary since we can set everything properly with createOrder
-    // since the implementation of OrderParams that bypasses stack depth limits.
-    /*
-    function activateOrder(uint256 _orderId, address[] calldata collateral) public onlyOrderOwner(_orderId) {
-        Order storage order = orders[_orderId];
-        require(order.collateralAssets.length == 0);
-        require(collateral.length > 0);
-
-        order.collateralAssets = collateral;
-    }
-    */
     
     function orderSetCollaterals(uint256 _orderId, address[] calldata collateral) public onlyOrderOwner(_orderId) {
         Order storage order = orders[_orderId];
@@ -2615,6 +2608,7 @@ contract MarginModule is Multicall, IOrderParams
         order_status[_orderId].positions++;
 
         emit PositionOpened(positionIndex, msg.sender, _amount, order.baseAsset, order.collateralAssets[_collateralIdx], _collateralAmount);
+        emit InitialLeverage(positionIndex, ((collateralEquivalentInBaseAsset + _amount) / collateralEquivalentInBaseAsset));
         emit NewAsset(positionIndex, order.baseAsset);
         if (order.collateralAssets[_collateralIdx] != order.baseAsset)
         {
@@ -2800,7 +2794,7 @@ contract MarginModule is Multicall, IOrderParams
     }
     
 
-    function getPositionStatus(uint256 positionId) public view returns(uint256 expected_balance, uint256 actual_balance)
+    function getPositionStatus(uint256 positionId) public view returns(uint256 expected_balance, uint256 actual_balance, uint256 secs_till_liquidation)
     {
         Position storage position = positions[positionId];
         Order storage order = orders[position.orderId];
@@ -2820,8 +2814,13 @@ contract MarginModule is Multicall, IOrderParams
             uint256 _estimatedAsBase = oracle.getAmountOut(baseAsset, asset, balance);
             totalValueInBaseAsset += _estimatedAsBase;
         }
+        
+        //uint256 requiredAmount = (position.initialBalance * order.interestRate * elapsedSecs) / 30 days;
+        //requiredAmount = requiredAmount / INTEREST_RATE_PRECISION;
 
-        return (requiredAmount, totalValueInBaseAsset);
+        uint256 _secs = (totalValueInBaseAsset - requiredAmount) * 30 days / order.interestRate;
+
+        return (requiredAmount, totalValueInBaseAsset, _secs);
     }
 
     // Price must be taken from the price source specified by the order owner.
@@ -2953,6 +2952,7 @@ contract MarginModule is Multicall, IOrderParams
 
         if(autoWithdraw)
         {
+            /*
             for (uint256 i = 1; i < position.assets.length; i++) 
             {
                 uint256 _amountToWithdraw = position.balances[i];
@@ -2961,10 +2961,17 @@ contract MarginModule is Multicall, IOrderParams
                 if (position.assets[i] == address(0)) 
                 {
                     _sendEth(position.balances[i], position.owner);
-                } else {
+                } else 
+                {
                     _sendAsset(position.assets[i], position.balances[i], position.owner);
                 }
                 emit PositionWithdrawal(positionId, position.assets[i], position.balances[i]);
+            }
+            */
+            
+            for (uint256 i = 0; i < position.assets.length; i++)
+            {
+                positionWithdraw(positionId, position.assets[i]);
             }
         }
     }
@@ -3075,7 +3082,7 @@ contract MarginModule is Multicall, IOrderParams
     }
 
     function _sendAsset(address asset, uint256 amount, address receiver) internal {
-        require(asset != address(0));
+        require(asset != address(0), "R1");
 
         IERC20Minimal(asset).transfer(receiver, amount);
     }
@@ -3161,9 +3168,11 @@ contract MarginModule is Multicall, IOrderParams
         return positions[id].balances;
     }
 
+/*
     function getOrderCollateralAssets(uint256 id) public view returns (address[] memory) {
         return orders[id].collateralAssets;
     }
+*/
 
     function getOrderExpirationData(uint256 id) public view returns(uint256, address, uint32) {
         OrderExpiration storage data = orders[id].expirationData;
@@ -3171,6 +3180,7 @@ contract MarginModule is Multicall, IOrderParams
         return (data.liquidationRewardAmount, data.liquidationRewardAsset, data.deadline);
     }
 
+/*
     function getOrdersLength() public view returns (uint256) {
        return orderIndex;
     }
@@ -3178,6 +3188,7 @@ contract MarginModule is Multicall, IOrderParams
     function getPositionsLength() public view returns (uint256) {
         return positionIndex;
     }
+*/
 
     function getIdFromTokenlist(bytes32 _listId, address asset) public view returns(uint256 assetId) {
         Tokenlist storage list = tokenlists[_listId];
@@ -3195,6 +3206,7 @@ contract MarginModule is Multicall, IOrderParams
         }
         require(assetId < list.tokens.length);
     }
+
 
     function getPositionTokenlistID(uint256 _positionId) public view returns(bytes32 _whitelistId) {
         
