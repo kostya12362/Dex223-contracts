@@ -101,6 +101,14 @@ contract WhitelistIDHelper
     }
 }
 
+contract BalanceCaller
+{
+    function retreiveBalances(uint256 _positionId, address _marginModule) public view returns (uint256 expected, uint256 available)
+    {
+        (expected, available) = MarginModule(_marginModule).getPositionStatus(_positionId);
+    }
+}
+
 contract PureOracle
 {
     
@@ -1073,6 +1081,24 @@ contract UtilityModuleCfg2 is IOrderParams, IMintParams, IExactInputSingleParams
         }
     }
 
+    function inheritGroup(uint256 _groupId, uint256 _groupId2) public
+    {
+        test_group[_groupId].token0 = test_group[_groupId2].token0;
+        test_group[_groupId].token1 = test_group[_groupId2].token1;
+        test_group[_groupId].positionId = test_group[_groupId2].positionId;
+        test_group[_groupId].orderId = test_group[_groupId2].orderId ;
+
+        if(IERC20(test_group[_groupId].token0).balanceOf(address(this)) < 20000 * 10**18)
+        {
+            IERC20(test_group[_groupId].token0).mint(address(this), 50000 * 10**18);
+        }
+
+        if(IERC20(test_group[_groupId].token1).balanceOf(address(this)) < 20000 * 10**18)
+        {
+            IERC20(test_group[_groupId].token1).mint(address(this), 50000 * 10**18);
+        }
+    }
+
     function step1_MakeWhitelist(uint256 _groupId) public
     {
         /*
@@ -1159,6 +1185,57 @@ contract UtilityModuleCfg2 is IOrderParams, IMintParams, IExactInputSingleParams
         OrderParams memory _params;
         _params.whitelistId             = test_group[_groupId].tokenWlist;
         _params.interestRate            = 72000; // 1% hour? Needs additional clarification.
+        _params.duration                = 4800;
+        _params.minLoan                 = 0;
+        _params.liquidationRewardAmount = 103;
+        _params.liquidationRewardAsset  = liq_token;
+        _params.asset                   = test_group[_groupId].token1;
+        _params.deadline                = 4294967290; // Infinity.
+        _params.currencyLimit           = 4;
+        _params.leverage                = 10;         // 10x << Max leverage
+        _params.oracle                  = oracle;
+        _params.collateral              = _collateralTkn;
+
+
+        test_group[_groupId].orderId = MarginModule(margin_module).createOrder(
+            _params
+        );
+
+        test_group[_groupId].last_step = 2;
+        // ["0x050afabcae45ca12d82e4e72a31b41705e9349d547c5502b13ca38747125a648", "216000000", "4800", "725", "725", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", "1949519966", "4", "10", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa", ["0x8f5ea3d9b780da2d0ab6517ac4f6e697a948794f", "0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa"]]
+    }
+
+    
+
+    function step2_MakeCustomOrder(uint256 _groupId, uint256 _interestRate) public 
+    {
+        // token1 becomes baseAsset for the order
+        // liqToken is assigned as liquidation reward
+        // token0 becomes collateral and whitelisted for trading
+        // token1 is also whitelisted for trading
+
+
+
+        //OrderExpiration memory _orderExpiry = OrderExpiration(103, token0, 4294967290);
+
+/*      bytes32 whitelistId;
+        uint256 interestRate;
+        uint256 duration;
+        uint256 minLoan;
+        uint256 liquidationRewardAmount;
+        address liquidationRewardAsset;
+        address asset;
+        uint32 deadline;
+        uint16 currencyLimit;
+        uint8 leverage;
+        address oracle;
+        address[] collateral;
+        */
+        address[] memory _collateralTkn = new address[](1);
+        _collateralTkn[0] = test_group[_groupId].token0;
+        OrderParams memory _params;
+        _params.whitelistId             = test_group[_groupId].tokenWlist;
+        _params.interestRate            = _interestRate; // 1% hour? Needs additional clarification.
         _params.duration                = 4800;
         _params.minLoan                 = 0;
         _params.liquidationRewardAmount = 103;
@@ -2794,7 +2871,7 @@ contract MarginModule is Multicall, IOrderParams
     }
     
 
-    function getPositionStatus(uint256 positionId) public view returns(uint256 expected_balance, uint256 actual_balance, uint256 secs_till_liquidation)
+    function getPositionStatus(uint256 positionId) public view returns(uint256 expected_balance, uint256 actual_balance)
     {
         Position storage position = positions[positionId];
         Order storage order = orders[position.orderId];
@@ -2818,9 +2895,7 @@ contract MarginModule is Multicall, IOrderParams
         //uint256 requiredAmount = (position.initialBalance * order.interestRate * elapsedSecs) / 30 days;
         //requiredAmount = requiredAmount / INTEREST_RATE_PRECISION;
 
-        uint256 _secs = (totalValueInBaseAsset - requiredAmount) * 30 days / order.interestRate;
-
-        return (requiredAmount, totalValueInBaseAsset, _secs);
+        return (requiredAmount, totalValueInBaseAsset);
     }
 
     // Price must be taken from the price source specified by the order owner.
@@ -2848,19 +2923,48 @@ contract MarginModule is Multicall, IOrderParams
         return totalValueInBaseAsset < requiredAmount;
     }
 
-    function subjectToLiquidationExtended(uint256 positionId) public view returns (bool _subjectToLiquidation, address liquidator, uint256 frozenTimestamp, bool liquidated)
+    function subjectToLiquidationExtended(uint256 positionId) public view returns (bool _subjectToLiquidation, address liquidator, uint256 frozenTimestamp, bool liquidated, uint256 insolvensy_expected_time)
     {
         Position storage position = positions[positionId];
-        return (this.subjectToLiquidation(positionId), position.liquidator, position.frozenTime, !position.open);
+        Order storage order = orders[position.orderId];
+        Oracle oracle = Oracle(order.oracle);
+
+        uint256 requiredAmount = calculateDebtAmount(position);
+
+        // base asset(at index 0) balance
+        uint256 totalValueInBaseAsset = position.balances[0];
+        address baseAsset = position.assets[0];
+
+        for (uint256 i = 1; i < position.assets.length; i++) {
+            address asset = position.assets[i];
+            uint256 balance = position.balances[i];
+
+            //(address poolAddress,,) = oracle.findPoolWithHighestLiquidity(asset, baseAsset);
+            //uint256 estimatedAsBase = oracle.getAmountOut(poolAddress, baseAsset, asset, balance);
+            uint256 _estimatedAsBase = oracle.getAmountOut(baseAsset, asset, balance);
+            totalValueInBaseAsset += _estimatedAsBase;
+        }
+        if(totalValueInBaseAsset > requiredAmount)
+        {
+            uint256 _insolvency_time_delta = ((totalValueInBaseAsset - requiredAmount) * 100 * 30 days) / (position.interest * position.initialBalance);
+            insolvensy_expected_time = _insolvency_time_delta + position.createdAt;
+        }
+        /*
+        else 
+        {
+            insolvensy_expected_time = 0;
+        }
+        */
+        return (requiredAmount > totalValueInBaseAsset, position.liquidator, position.frozenTime, !position.open, insolvensy_expected_time);
     }
 
     // The borrower must repay both the principal amount and the accrued interest.
     function calculateDebtAmount(Position storage position) internal view returns (uint256) {
         uint256 elapsedSecs = block.timestamp - position.createdAt;
 
-        Order storage order = orders[position.orderId];
+        //Order storage order = orders[position.orderId];
         // calculation of accrued loan interest over the past days
-        uint256 requiredAmount = (position.initialBalance * order.interestRate * elapsedSecs) / 30 days;
+        uint256 requiredAmount = (position.initialBalance * position.interest * elapsedSecs) / 30 days;
         // strip excess precision digits from interestRate
         requiredAmount = requiredAmount / INTEREST_RATE_PRECISION;
         // include the loan principal amount
