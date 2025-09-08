@@ -20,7 +20,7 @@ interface IDex223PoolQuotable
 }
 
 contract Oracle {
-    uint256 public pricePrecisionDecimals = 6;
+    uint256 public pricePrecisionDecimals = 5;
 
     function getSqrtPriceX96(address poolAddress) public view returns(uint160 sqrtPriceX96) {
         IUniswapV3Pool pool;
@@ -68,6 +68,55 @@ contract Oracle {
     }
     */
         // out = buy, in = sell
+    function getAmountOutIntrospection(
+        address buy,
+        address sell,
+        uint256 amountToSell
+    ) public view returns(uint256 amountBought, uint256 _slashed_zeros, uint256 _tmp_sum) {
+        (address _pool, uint128 liquidity, uint24 fee) = findPoolWithHighestLiquidity(buy, sell);
+
+        //amountBought = uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;  <<< This is a true formula
+
+        uint256 slashed_zeros;
+        uint256 tmp_sum;
+        if(amountToSell > 10**pricePrecisionDecimals)
+        {
+            // Slash *precision* decimals and calculate the prices
+            // based on the leftmost digits.
+            uint256 sum = amountToSell;
+            // for (int i=0, i<10, i++)
+            //      do
+            /*
+            for (_calculatedPrecision = 0; sum != 0; _calculatedPrecision++)
+            {
+                sum = sum / 10;
+            }
+            amountToSell = amountToSell / 10**(_calculatedPrecision - pricePrecisionDecimals); // Expose only the first 5 digits to the calculations
+
+            amountBought = (uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192) * 10**(_calculatedPrecision - pricePrecisionDecimals);
+            */
+            for (slashed_zeros = 0; sum > 10**pricePrecisionDecimals; slashed_zeros++)
+            {
+                sum = sum / 10;
+            }
+
+            amountBought = sum;
+            tmp_sum = sum;
+            amountBought = uint256(getSqrtPriceX96(_pool))**2 * sum / 2**192;
+            amountBought = amountBought * 10**slashed_zeros;
+        }
+        else
+        {
+            amountBought = uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;
+        }
+
+        if(sell > buy)
+        {
+            amountBought = amountToSell * amountToSell / amountBought;
+        }
+        return (amountBought, slashed_zeros, tmp_sum); // Slashes down decimals significantly but provides rough price prediction.
+    }
+
     function getAmountOut(
         address buy,
         address sell,
@@ -77,30 +126,40 @@ contract Oracle {
 
         //amountBought = uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;  <<< This is a true formula
 
+        uint256 slashed_zeros;
         if(amountToSell > 10**pricePrecisionDecimals)
         {
-            uint256 _calculatedPrecision;
+            // Slash *precision* decimals and calculate the prices
+            // based on the leftmost digits.
             uint256 sum = amountToSell;
-            for (_calculatedPrecision = 0; sum != 0; _calculatedPrecision++) 
+            // for (int i=0, i<10, i++)
+            //      do
+            /*
+            for (_calculatedPrecision = 0; sum != 0; _calculatedPrecision++)
             {
                 sum = sum / 10;
             }
             amountToSell = amountToSell / 10**(_calculatedPrecision - pricePrecisionDecimals); // Expose only the first 5 digits to the calculations
 
-            amountBought = uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;
-
-            amountBought = amountBought * 10**(_calculatedPrecision - pricePrecisionDecimals);
+            amountBought = (uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192) * 10**(_calculatedPrecision - pricePrecisionDecimals);
+            */
+            for (slashed_zeros = 0; sum > 10**pricePrecisionDecimals; slashed_zeros++)
+            {
+                sum = sum / 10;
+            }
+            amountBought = uint256(getSqrtPriceX96(_pool))**2 * sum / 2**192;
+            amountBought = amountBought * 10**slashed_zeros;
         }
-        else 
+        else
         {
             amountBought = uint256(getSqrtPriceX96(_pool))**2 * amountToSell / 2**192;
         }
+
         if(sell > buy)
         {
-            uint256 _actualPrice = amountToSell / amountBought;
-            amountBought = amountToSell * _actualPrice;
+            amountBought = amountToSell * amountToSell / amountBought;
         }
-        return amountBought; // Slashes down decimals significantly but provides rough price prediction.
+        return (amountBought); // Slashes down decimals significantly but provides rough price prediction.
     }
 
     IUniswapV3Factory public factory;
