@@ -22,8 +22,11 @@
 - Factory 0x5D63230470AB553195dfaf794de3e94C69d150f9
 - Router 0x99504dbaa0f9368e9341c15f67377d55ed4ac690
 - NFPM 0x068754a9fd1923d5c7b2da008c56ba0ef0958d7e
+- Auto-listing Registry (verified) 0x6ee7518400c14e8046252E3cC1670FC8093e618F
+- Core Testnet Auto-listing (verified) 0x8a1839E6b7b4538a15de8865891FcE6e24a27ddA
+- 
 
-## Sepolia testnet deployment
+## Sepolia testnet deployment (deprecated)
 
 | Name                | Address                                                                                                                       |
 |---------------------|-------------------------------------------------------------------------------------------------------------------------------|
@@ -41,7 +44,7 @@
 | Utility CFG 2 (test helper)  | [0x6D0e2CD13e1506924182d2197EE64D53CA8ba8a2](https://sepolia.etherscan.io/address/0x6D0e2CD13e1506924182d2197EE64D53CA8ba8a2#code) | 
 | Margin Module       | [0xa64c8C9e13185e54dF846a7AC3265b9Be4E96104](https://sepolia.etherscan.io/address/0xa64c8C9e13185e54dF846a7AC3265b9Be4E96104#code) |
 
-## Deprecated Ethereum mainnet deployment
+## Ethereum mainnet deployment (deprecated)
 
 | Name                | Address                                                                                                                       |
 |---------------------|-------------------------------------------------------------------------------------------------------------------------------|
