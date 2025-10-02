@@ -23,8 +23,8 @@
 - Router 0x99504dbaa0f9368e9341c15f67377d55ed4ac690
 - NFPM 0x068754a9fd1923d5c7b2da008c56ba0ef0958d7e
 - Auto-listing Registry (verified) 0x6ee7518400c14e8046252E3cC1670FC8093e618F
-- Core Testnet Auto-listing (verified) 0x8a1839E6b7b4538a15de8865891FcE6e24a27ddA
-- 
+- Core Testnet Auto-listing (verified / 100 SepWEI per token) 0x8a1839E6b7b4538a15de8865891FcE6e24a27ddA
+- Free Testnet Auto-listing (verified) 0xBC5fC0bbd73DF985Cc28c9367407f9FfB1FD4CC3
 
 ## Sepolia testnet deployment (deprecated)
 
