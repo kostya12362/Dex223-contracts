@@ -15,7 +15,7 @@
 | CORE_AUTOLISTING    | [0x029f10E06Dc7d6264f9432ACA3F52572543c48e0](https://etherscan.io/address/0x029f10E06Dc7d6264f9432ACA3F52572543c48e0)      |
 | FREE_AUTOLISTING    | [0xa7089d8cbcc47543388a346dd6ebf0b05106a477](https://etherscan.io/address/0xa7089d8cbcc47543388a346dd6ebf0b05106a477)      |
 | AUTOLISTINGS_REGISTRY | [0x105F43A70aFCEd0493545D04C1d5687DF4b3f48f](https://etherscan.io/address/0x105F43A70aFCEd0493545D04C1d5687DF4b3f48f)    |
-
+| ERC223_TOKEN_DEPLOYER | [0xe3391c70A6b71bC26D6F77437590306006aD0ddb](https://etherscan.io/address/0xe3391c70A6b71bC26D6F77437590306006aD0ddb#code)    |
 
 ## Sepolia testnet deployment (Quoteswap supported)
 
