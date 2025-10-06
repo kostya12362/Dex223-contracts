@@ -2946,8 +2946,8 @@ contract MarginModule is Multicall, IOrderParams
         }
         if(totalValueInBaseAsset > requiredAmount)
         {
-            uint256 _insolvency_time_delta = ((totalValueInBaseAsset - requiredAmount) * 100 * 30 days) / (position.interest * position.initialBalance);
-            insolvensy_expected_time = _insolvency_time_delta + position.createdAt;
+            uint256 _insolvency_time_delta = ((totalValueInBaseAsset - requiredAmount) * 10000 * 30 days) / (position.interest * position.initialBalance);
+            insolvensy_expected_time = _insolvency_time_delta + block.timestamp;
         }
         /*
         else 
