@@ -3,7 +3,49 @@ pragma solidity ^0.8.13;
 import '../libraries/TransferHelper.sol';
 import '../interfaces/IERC20Minimal.sol';
 
+contract Dex223Pool {
+
+    struct Token
+    {
+        address erc20;
+        address erc223;
+    }
+
+    struct ProtocolFees 
+    {
+        uint128 token0;
+        uint128 token1;
+    }
+    Token public token0;
+    Token public token1;
+    ProtocolFees public protocolFees;
+    
+    function collectProtocol(
+        address recipient,
+        uint128 amount0Requested,
+        uint128 amount1Requested,
+        bool token0_223,
+        bool token1_223
+    ) public returns (uint128 amount0, uint128 amount1)
+    {
+
+    }
+}
+
 contract Revenue {
+
+    struct Token
+    {
+        address erc20;
+        address erc223;
+    }
+
+    struct ProtocolFees 
+    {
+        uint128 token0;
+        uint128 token1;
+    }
+
     uint256 totalContribution;
     mapping (address => uint256) public staked;
     mapping (address => uint256) public lastUpdate;
@@ -50,29 +92,30 @@ contract Revenue {
     // Processes protocol fees from multiple pools.
     // This contract must be established as the owner of the Factory
     // to have permission to call "collectProtocol"
-    /*function delivery(address[] calldata pools) public {
+    function delivery(address[] calldata pools) public {
         for (uint256 i = 0; i < pools.length; i++) {
             address p = pools[i];
-            Pool.Token memory t0 = Pool(p).token0();
-            if (get20[t0.erc223] == address(0)) {
-                get223[t0.erc20] = t0.erc223;
-                get20[t0.erc223] = t0.erc20;
+            //Token memory t0 = Dex223Pool(p).token0();
+            (address t0_20, address t0_223) = Dex223Pool(p).token0();
+            if (get20[t0_223] == address(0)) {
+                get223[t0_20] = t0_223;
+                get20[t0_223] = t0_20;
             }
-            Pool.Token memory t1 = Pool(p).token1();
-            if (get20[t1.erc223] == address(0)) {
-                get223[t1.erc20] = t1.erc223;
-                get20[t1.erc223] = t1.erc20;
+            (address t1_20, address t1_223) = Dex223Pool(p).token1();
+            if (get20[t1_223] == address(0)) {
+                get223[t1_20] = t1_223;
+                get20[t1_223] = t1_20;
             }
-            Pool.ProtocolFees memory fees = Pool(p).protocolFees();
-            (uint128 a0, uint128 a1) = Pool(p).collectProtocol(
+            (uint128 fees_token0, uint128 fees_token1) = Dex223Pool(p).protocolFees();
+            (uint128 a0, uint128 a1) = Dex223Pool(p).collectProtocol(
                 address(this),
-                fees.token0,
-                fees.token1,
+                fees_token0,
+                fees_token1,
                 false,
                 false
             );
         }
-    }*/
+    }
 
     function claim(address token) public {
         _update(msg.sender);
