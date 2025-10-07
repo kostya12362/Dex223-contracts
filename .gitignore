@@ -5,3 +5,5 @@
 .env
 /node_modules/
 .states
+.DS_Store
+/.idea
